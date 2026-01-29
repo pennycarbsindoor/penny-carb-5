@@ -26,7 +26,6 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  ArrowLeft, 
   Plus, 
   Search, 
   Edit2, 
@@ -34,6 +33,8 @@ import {
   Leaf
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import AdminNavbar from '@/components/admin/AdminNavbar';
+import ImageUpload from '@/components/admin/ImageUpload';
 
 const serviceTypes: { value: ServiceType; label: string }[] = [
   { value: 'indoor_events', label: 'Indoor Events' },
@@ -246,14 +247,12 @@ const AdminItems: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-card">
-        <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="font-display text-lg font-semibold">Food Items</h1>
-          </div>
+      <AdminNavbar />
+
+      {/* Page Header */}
+      <div className="border-b bg-card px-4 py-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold">Food Items</h2>
           <Button size="sm" onClick={() => handleOpenDialog()}>
             <Plus className="mr-2 h-4 w-4" />
             Add Item
@@ -261,7 +260,7 @@ const AdminItems: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 border-t px-4 py-3">
+        <div className="mt-4 flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -285,7 +284,7 @@ const AdminItems: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-      </header>
+      </div>
 
       <main className="p-4">
         {isLoading ? (

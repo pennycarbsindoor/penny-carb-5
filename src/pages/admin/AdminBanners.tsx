@@ -13,10 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ArrowLeft, Plus, Pencil, Trash2, Image, Calendar as CalendarIcon, Settings, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Image, Calendar as CalendarIcon, Settings, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import AdminNavbar from '@/components/admin/AdminNavbar';
+import ImageUpload from '@/components/admin/ImageUpload';
 
 interface Banner {
   id: string;
@@ -167,16 +169,14 @@ const AdminBanners: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="font-display text-lg font-semibold">Banner Management</h1>
-              <p className="text-xs text-muted-foreground">Manage homepage carousel banners</p>
-            </div>
+      <AdminNavbar />
+
+      {/* Page Header */}
+      <div className="border-b bg-card px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Banner Management</h2>
+            <p className="text-sm text-muted-foreground">Manage homepage carousel banners</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setIsDialogOpen(open); }}>
             <DialogTrigger asChild>
@@ -200,7 +200,14 @@ const AdminBanners: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="image_url">Image URL *</Label>
+                  <Label>Banner Image *</Label>
+                  <ImageUpload
+                    bucket="banners"
+                    currentImageUrl={formData.image_url || null}
+                    onUploadComplete={(url) => setFormData(f => ({ ...f, image_url: url }))}
+                    onRemove={() => setFormData(f => ({ ...f, image_url: '' }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Or paste an image URL below</p>
                   <Input
                     id="image_url"
                     value={formData.image_url}
@@ -299,7 +306,7 @@ const AdminBanners: React.FC = () => {
             </DialogContent>
           </Dialog>
         </div>
-      </header>
+      </div>
 
       <main className="p-4">
         <Card>

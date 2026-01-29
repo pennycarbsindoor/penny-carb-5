@@ -15,8 +15,10 @@ import {
   MapPin,
   LogOut,
   ChefHat,
-  Image
+  Image,
+  FolderOpen
 } from 'lucide-react';
+import AdminNavbar from '@/components/admin/AdminNavbar';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -61,6 +63,13 @@ const AdminDashboard: React.FC = () => {
       path: '/admin/items', 
       color: 'bg-success/10 text-success',
       description: 'Menu management'
+    },
+    { 
+      icon: FolderOpen, 
+      label: 'Categories', 
+      path: '/admin/categories', 
+      color: 'bg-teal-500/10 text-teal-600',
+      description: 'Food categories'
     },
     { 
       icon: Image, 
@@ -124,25 +133,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-card">
-        <div className="flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="font-display text-lg font-semibold">Admin Panel</h1>
-              <p className="text-xs text-muted-foreground">
-                {role === 'super_admin' ? 'Super Admin' : 'Admin'}
-              </p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
-      </header>
+      <AdminNavbar />
 
       <main className="p-4">
         {/* Welcome Card */}
