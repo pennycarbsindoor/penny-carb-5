@@ -31,7 +31,7 @@ const signupSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
   panchayatId: z.string().min(1, 'Please select a panchayat'),
-  wardId: z.string().min(1, 'Please select a ward'),
+  wardNumber: z.string().min(1, 'Please select a ward'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -46,6 +46,7 @@ const Auth: React.FC = () => {
   const { panchayats, getWardsForPanchayat, isLoading: locationLoading } = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [selectedPanchayatForWards, setSelectedPanchayatForWards] = useState<string | null>(null);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -63,16 +64,19 @@ const Auth: React.FC = () => {
       password: '',
       confirmPassword: '',
       panchayatId: '',
-      wardId: '',
+      wardNumber: '',
     },
   });
 
   const selectedPanchayatId = signupForm.watch('panchayatId');
-  const availableWards = selectedPanchayatId ? getWardsForPanchayat(selectedPanchayatId) : [];
+  
+  // Get the selected panchayat object and generate ward numbers
+  const selectedPanchayat = panchayats.find(p => p.id === selectedPanchayatId);
+  const availableWards = selectedPanchayat ? getWardsForPanchayat(selectedPanchayat) : [];
 
   // Reset ward when panchayat changes
   useEffect(() => {
-    signupForm.setValue('wardId', '');
+    signupForm.setValue('wardNumber', '');
   }, [selectedPanchayatId]);
 
   // Redirect if already logged in
@@ -112,7 +116,7 @@ const Auth: React.FC = () => {
         data.password,
         data.name,
         data.panchayatId,
-        data.wardId
+        parseInt(data.wardNumber, 10)
       );
       if (error) {
         toast({
@@ -277,7 +281,7 @@ const Auth: React.FC = () => {
 
                     <FormField
                       control={signupForm.control}
-                      name="wardId"
+                      name="wardNumber"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Ward</FormLabel>
@@ -291,10 +295,10 @@ const Auth: React.FC = () => {
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent className="bg-popover">
-                              {availableWards.map((w) => (
-                                <SelectItem key={w.id} value={w.id}>
-                                  {w.name}
+                            <SelectContent className="bg-popover max-h-60">
+                              {availableWards.map((wardNum) => (
+                                <SelectItem key={wardNum} value={wardNum.toString()}>
+                                  Ward {wardNum}
                                 </SelectItem>
                               ))}
                             </SelectContent>

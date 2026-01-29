@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from '@/contexts/LocationContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, User, Phone, MapPin, LogOut, ChevronRight, Settings, HelpCircle, FileText } from 'lucide-react';
@@ -12,10 +12,9 @@ import BottomNav from '@/components/customer/BottomNav';
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, role, signOut } = useAuth();
-  const { panchayats, wards } = useLocation();
+  const { panchayats } = useLocation();
 
   const panchayat = panchayats.find(p => p.id === profile?.panchayat_id);
-  const ward = wards.find(w => w.id === profile?.ward_id);
 
   const handleLogout = async () => {
     await signOut();
@@ -70,11 +69,13 @@ const Profile: React.FC = () => {
                   <Phone className="h-3 w-3" />
                   <span>{profile?.mobile_number}</span>
                 </div>
-                {(panchayat || ward) && (
+                {(panchayat || profile?.ward_number) && (
                   <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     <span>
-                      {ward?.name}{ward && panchayat && ', '}{panchayat?.name}
+                      {profile?.ward_number && `Ward ${profile.ward_number}`}
+                      {profile?.ward_number && panchayat && ', '}
+                      {panchayat?.name}
                     </span>
                   </div>
                 )}

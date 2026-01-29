@@ -1,16 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Panchayat, Ward } from '@/types/database';
+import type { Panchayat } from '@/types/database';
 
 interface LocationContextType {
   panchayats: Panchayat[];
-  wards: Ward[];
   selectedPanchayat: Panchayat | null;
-  selectedWard: Ward | null;
+  selectedWardNumber: number | null;
   setSelectedPanchayat: (panchayat: Panchayat | null) => void;
-  setSelectedWard: (ward: Ward | null) => void;
+  setSelectedWardNumber: (wardNumber: number | null) => void;
   isLoading: boolean;
-  getWardsForPanchayat: (panchayatId: string) => Ward[];
+  getWardsForPanchayat: (panchayat: Panchayat) => number[];
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -25,39 +24,37 @@ export const useLocation = () => {
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [panchayats, setPanchayats] = useState<Panchayat[]>([]);
-  const [wards, setWards] = useState<Ward[]>([]);
   const [selectedPanchayat, setSelectedPanchayat] = useState<Panchayat | null>(null);
-  const [selectedWard, setSelectedWard] = useState<Ward | null>(null);
+  const [selectedWardNumber, setSelectedWardNumber] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLocations = async () => {
+    const fetchPanchayats = async () => {
       try {
-        const [panchayatsRes, wardsRes] = await Promise.all([
-          supabase.from('panchayats').select('*').eq('is_active', true).order('name'),
-          supabase.from('wards').select('*').eq('is_active', true).order('ward_number'),
-        ]);
+        const { data, error } = await supabase
+          .from('panchayats')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
 
-        if (panchayatsRes.data) {
-          setPanchayats(panchayatsRes.data as Panchayat[]);
-        }
-        if (wardsRes.data) {
-          setWards(wardsRes.data as Ward[]);
+        if (error) throw error;
+        if (data) {
+          setPanchayats(data as Panchayat[]);
         }
       } catch (error) {
-        console.error('Error fetching locations:', error);
+        console.error('Error fetching panchayats:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchLocations();
+    fetchPanchayats();
   }, []);
 
   // Load saved selection from localStorage
   useEffect(() => {
     const savedPanchayatId = localStorage.getItem('selectedPanchayatId');
-    const savedWardId = localStorage.getItem('selectedWardId');
+    const savedWardNumber = localStorage.getItem('selectedWardNumber');
 
     if (savedPanchayatId && panchayats.length > 0) {
       const panchayat = panchayats.find(p => p.id === savedPanchayatId);
@@ -66,13 +63,10 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     }
 
-    if (savedWardId && wards.length > 0) {
-      const ward = wards.find(w => w.id === savedWardId);
-      if (ward) {
-        setSelectedWard(ward);
-      }
+    if (savedWardNumber) {
+      setSelectedWardNumber(parseInt(savedWardNumber, 10));
     }
-  }, [panchayats, wards]);
+  }, [panchayats]);
 
   // Save selection to localStorage
   useEffect(() => {
@@ -84,26 +78,35 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [selectedPanchayat]);
 
   useEffect(() => {
-    if (selectedWard) {
-      localStorage.setItem('selectedWardId', selectedWard.id);
+    if (selectedWardNumber !== null) {
+      localStorage.setItem('selectedWardNumber', selectedWardNumber.toString());
     } else {
-      localStorage.removeItem('selectedWardId');
+      localStorage.removeItem('selectedWardNumber');
     }
-  }, [selectedWard]);
+  }, [selectedWardNumber]);
 
-  const getWardsForPanchayat = (panchayatId: string): Ward[] => {
-    return wards.filter(w => w.panchayat_id === panchayatId);
+  // Generate ward numbers 1 to ward_count for a panchayat
+  const getWardsForPanchayat = (panchayat: Panchayat): number[] => {
+    return Array.from({ length: panchayat.ward_count }, (_, i) => i + 1);
+  };
+
+  // Reset ward number when panchayat changes
+  const handleSetSelectedPanchayat = (panchayat: Panchayat | null) => {
+    setSelectedPanchayat(panchayat);
+    // Reset ward if the new panchayat doesn't have the selected ward number
+    if (panchayat && selectedWardNumber !== null && selectedWardNumber > panchayat.ward_count) {
+      setSelectedWardNumber(null);
+    }
   };
 
   return (
     <LocationContext.Provider
       value={{
         panchayats,
-        wards,
         selectedPanchayat,
-        selectedWard,
-        setSelectedPanchayat,
-        setSelectedWard,
+        selectedWardNumber,
+        setSelectedPanchayat: handleSetSelectedPanchayat,
+        setSelectedWardNumber,
         isLoading,
         getWardsForPanchayat,
       }}

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { Profile, UserRole, AppRole } from '@/types/database';
+import type { Profile, AppRole } from '@/types/database';
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +10,7 @@ interface AuthContextType {
   role: AppRole | null;
   isLoading: boolean;
   signIn: (mobileNumber: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (mobileNumber: string, password: string, name: string, panchayatId: string, wardId: string) => Promise<{ error: Error | null }>;
+  signUp: (mobileNumber: string, password: string, name: string, panchayatId: string, wardNumber: number) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -126,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string, 
     name: string, 
     panchayatId: string, 
-    wardId: string
+    wardNumber: number
   ) => {
     try {
       // Convert mobile to email format for Supabase auth
@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name,
             mobile_number: mobileNumber,
             panchayat_id: panchayatId,
-            ward_id: wardId,
+            ward_number: wardNumber,
           });
 
         if (profileError) {

@@ -218,7 +218,7 @@ export type Database = {
           price: number
           service_type: Database["public"]["Enums"]["service_type"]
           updated_at: string
-          ward_id: string | null
+          ward_number: number | null
         }
         Insert: {
           category_id?: string | null
@@ -236,7 +236,7 @@ export type Database = {
           price: number
           service_type: Database["public"]["Enums"]["service_type"]
           updated_at?: string
-          ward_id?: string | null
+          ward_number?: number | null
         }
         Update: {
           category_id?: string | null
@@ -254,7 +254,7 @@ export type Database = {
           price?: number
           service_type?: Database["public"]["Enums"]["service_type"]
           updated_at?: string
-          ward_id?: string | null
+          ward_number?: number | null
         }
         Relationships: [
           {
@@ -269,13 +269,6 @@ export type Database = {
             columns: ["panchayat_id"]
             isOneToOne: false
             referencedRelation: "panchayats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "food_items_ward_id_fkey"
-            columns: ["ward_id"]
-            isOneToOne: false
-            referencedRelation: "wards"
             referencedColumns: ["id"]
           },
         ]
@@ -345,7 +338,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
           updated_at: string
-          ward_id: string
+          ward_number: number
         }
         Insert: {
           assigned_cook_id?: string | null
@@ -363,7 +356,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           total_amount: number
           updated_at?: string
-          ward_id: string
+          ward_number: number
         }
         Update: {
           assigned_cook_id?: string | null
@@ -381,7 +374,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
           updated_at?: string
-          ward_id?: string
+          ward_number?: number
         }
         Relationships: [
           {
@@ -389,13 +382,6 @@ export type Database = {
             columns: ["panchayat_id"]
             isOneToOne: false
             referencedRelation: "panchayats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_ward_id_fkey"
-            columns: ["ward_id"]
-            isOneToOne: false
-            referencedRelation: "wards"
             referencedColumns: ["id"]
           },
         ]
@@ -408,6 +394,7 @@ export type Database = {
           is_active: boolean
           name: string
           updated_at: string
+          ward_count: number
         }
         Insert: {
           code?: string | null
@@ -416,6 +403,7 @@ export type Database = {
           is_active?: boolean
           name: string
           updated_at?: string
+          ward_count?: number
         }
         Update: {
           code?: string | null
@@ -424,6 +412,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string
+          ward_count?: number
         }
         Relationships: []
       }
@@ -438,7 +427,7 @@ export type Database = {
           panchayat_id: string | null
           updated_at: string
           user_id: string
-          ward_id: string | null
+          ward_number: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -450,7 +439,7 @@ export type Database = {
           panchayat_id?: string | null
           updated_at?: string
           user_id: string
-          ward_id?: string | null
+          ward_number?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -462,7 +451,7 @@ export type Database = {
           panchayat_id?: string | null
           updated_at?: string
           user_id?: string
-          ward_id?: string | null
+          ward_number?: number | null
         }
         Relationships: [
           {
@@ -470,13 +459,6 @@ export type Database = {
             columns: ["panchayat_id"]
             isOneToOne: false
             referencedRelation: "panchayats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profiles_ward_id_fkey"
-            columns: ["ward_id"]
-            isOneToOne: false
-            referencedRelation: "wards"
             referencedColumns: ["id"]
           },
         ]
@@ -493,7 +475,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
-          ward_id: string | null
+          ward_number: number | null
         }
         Insert: {
           amount: number
@@ -506,7 +488,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
-          ward_id?: string | null
+          ward_number?: number | null
         }
         Update: {
           amount?: number
@@ -519,7 +501,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
-          ward_id?: string | null
+          ward_number?: number | null
         }
         Relationships: [
           {
@@ -534,13 +516,6 @@ export type Database = {
             columns: ["panchayat_id"]
             isOneToOne: false
             referencedRelation: "panchayats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "settlements_ward_id_fkey"
-            columns: ["ward_id"]
-            isOneToOne: false
-            referencedRelation: "wards"
             referencedColumns: ["id"]
           },
         ]
@@ -565,44 +540,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      wards: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          panchayat_id: string
-          updated_at: string
-          ward_number: number | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          panchayat_id: string
-          updated_at?: string
-          ward_number?: number | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          panchayat_id?: string
-          updated_at?: string
-          ward_number?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wards_panchayat_id_fkey"
-            columns: ["panchayat_id"]
-            isOneToOne: false
-            referencedRelation: "panchayats"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {

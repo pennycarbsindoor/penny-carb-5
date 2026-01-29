@@ -31,9 +31,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSearch }) => {
   const { 
     panchayats, 
     selectedPanchayat, 
-    selectedWard, 
+    selectedWardNumber, 
     setSelectedPanchayat, 
-    setSelectedWard,
+    setSelectedWardNumber,
     getWardsForPanchayat 
   } = useLocation();
   
@@ -53,17 +53,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSearch }) => {
   const handlePanchayatChange = (panchayatId: string) => {
     const panchayat = panchayats.find(p => p.id === panchayatId);
     setSelectedPanchayat(panchayat || null);
-    setSelectedWard(null); // Reset ward when panchayat changes
+    setSelectedWardNumber(null); // Reset ward when panchayat changes
   };
 
-  const handleWardChange = (wardId: string) => {
-    const wards = selectedPanchayat ? getWardsForPanchayat(selectedPanchayat.id) : [];
-    const ward = wards.find(w => w.id === wardId);
-    setSelectedWard(ward || null);
+  const handleWardChange = (wardNumber: string) => {
+    setSelectedWardNumber(parseInt(wardNumber, 10));
     setLocationDialogOpen(false);
   };
 
-  const availableWards = selectedPanchayat ? getWardsForPanchayat(selectedPanchayat.id) : [];
+  const availableWards = selectedPanchayat ? getWardsForPanchayat(selectedPanchayat) : [];
 
   return (
     <>
@@ -78,7 +76,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSearch }) => {
             <div className="hidden sm:block">
               <p className="text-xs text-muted-foreground">Deliver to</p>
               <p className="flex items-center text-sm font-medium">
-                {selectedWard?.name || selectedPanchayat?.name || 'Select Location'}
+                {selectedWardNumber 
+                  ? `Ward ${selectedWardNumber}, ${selectedPanchayat?.name}` 
+                  : selectedPanchayat?.name || 'Select Location'}
                 <ChevronDown className="ml-1 h-4 w-4" />
               </p>
             </div>
@@ -167,7 +167,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSearch }) => {
                 <SelectContent className="bg-popover">
                   {panchayats.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name} ({p.ward_count} wards)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -178,16 +178,16 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSearch }) => {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Ward</label>
                 <Select
-                  value={selectedWard?.id || ''}
+                  value={selectedWardNumber?.toString() || ''}
                   onValueChange={handleWardChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select Ward" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover">
-                    {availableWards.map((w) => (
-                      <SelectItem key={w.id} value={w.id}>
-                        Ward {w.ward_number}: {w.name}
+                  <SelectContent className="bg-popover max-h-60">
+                    {availableWards.map((wardNum) => (
+                      <SelectItem key={wardNum} value={wardNum.toString()}>
+                        Ward {wardNum}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -6,16 +6,7 @@ export interface Panchayat {
   id: string;
   name: string;
   code: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Ward {
-  id: string;
-  panchayat_id: string;
-  name: string;
-  ward_number: number | null;
+  ward_count: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -27,7 +18,7 @@ export interface Profile {
   name: string;
   mobile_number: string;
   panchayat_id: string | null;
-  ward_id: string | null;
+  ward_number: number | null;
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;
@@ -80,7 +71,7 @@ export interface FoodItem {
   preparation_time_minutes: number | null;
   created_by: string | null;
   panchayat_id: string | null;
-  ward_id: string | null;
+  ward_number: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -123,7 +114,7 @@ export interface Order {
   delivery_address: string | null;
   delivery_instructions: string | null;
   panchayat_id: string;
-  ward_id: string;
+  ward_number: number;
   assigned_cook_id: string | null;
   assigned_delivery_id: string | null;
   event_date: string | null;
@@ -162,7 +153,7 @@ export interface Settlement {
   approved_by: string | null;
   approved_at: string | null;
   panchayat_id: string | null;
-  ward_id: string | null;
+  ward_number: number | null;
   created_at: string;
   updated_at: string;
 }
