@@ -55,6 +55,7 @@ const AdminItems: React.FC = () => {
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodItemWithImages | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -128,6 +129,8 @@ const AdminItems: React.FC = () => {
   const handleOpenDialog = (item?: FoodItemWithImages) => {
     if (item) {
       setEditingItem(item);
+      const primaryImage = item.images?.find(img => img.is_primary) || item.images?.[0];
+      setUploadedImageUrl(primaryImage?.image_url || null);
       setFormData({
         name: item.name,
         description: item.description || '',
@@ -140,6 +143,7 @@ const AdminItems: React.FC = () => {
       });
     } else {
       setEditingItem(null);
+      setUploadedImageUrl(null);
       setFormData({
         name: '',
         description: '',
@@ -185,17 +189,51 @@ const AdminItems: React.FC = () => {
           .eq('id', editingItem.id);
 
         if (error) throw error;
+
+        // Handle image update
+        if (uploadedImageUrl) {
+          // Delete existing images for this item
+          await supabase
+            .from('food_item_images')
+            .delete()
+            .eq('food_item_id', editingItem.id);
+
+          // Add new image
+          await supabase
+            .from('food_item_images')
+            .insert({
+              food_item_id: editingItem.id,
+              image_url: uploadedImageUrl,
+              is_primary: true,
+            });
+        }
+
         toast({ title: 'Item updated successfully' });
       } else {
-        const { error } = await supabase
+        const { data: newItem, error } = await supabase
           .from('food_items')
-          .insert(itemData);
+          .insert(itemData)
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Add image for new item
+        if (uploadedImageUrl && newItem) {
+          await supabase
+            .from('food_item_images')
+            .insert({
+              food_item_id: newItem.id,
+              image_url: uploadedImageUrl,
+              is_primary: true,
+            });
+        }
+
         toast({ title: 'Item created successfully' });
       }
 
       setIsDialogOpen(false);
+      setUploadedImageUrl(null);
       fetchData();
     } catch (error) {
       console.error('Error saving item:', error);
@@ -378,6 +416,18 @@ const AdminItems: React.FC = () => {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <Label>Item Image</Label>
+              <ImageUpload
+                bucket="food-items"
+                folder="items"
+                currentImageUrl={uploadedImageUrl}
+                onUploadComplete={(url) => setUploadedImageUrl(url)}
+                onRemove={() => setUploadedImageUrl(null)}
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Item Name *</Label>
               <Input
