@@ -16,6 +16,7 @@ import ItemDetail from "./pages/ItemDetail";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
+import OrderDetail from "./pages/OrderDetail";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import IndoorEventBooking from "./pages/IndoorEventBooking";
@@ -32,6 +33,7 @@ import DeliveryDashboard from "./pages/delivery/DeliveryDashboard";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminOrders from "./pages/admin/AdminOrders";
 import AdminItems from "./pages/admin/AdminItems";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminLocations from "./pages/admin/AdminLocations";
@@ -65,6 +67,7 @@ const App = () => (
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/orders" element={<Orders />} />
+                <Route path="/order/:orderId" element={<OrderDetail />} />
                 <Route path="/profile" element={<Profile />} />
                 
                 {/* Cook Routes */}
@@ -77,6 +80,7 @@ const App = () => (
                 
                 {/* Admin Routes */}
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/items" element={<AdminItems />} />
                 <Route path="/admin/categories" element={<AdminCategories />} />
                 <Route path="/admin/locations" element={<AdminLocations />} />
