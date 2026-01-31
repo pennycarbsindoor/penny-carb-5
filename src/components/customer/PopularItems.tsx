@@ -100,12 +100,13 @@ const PopularItems: React.FC<PopularItemsProps> = ({ serviceType, title, limit =
       <div className="flex gap-4 overflow-x-auto px-4 pb-2 no-scrollbar">
         {items.map((item) => {
           const primaryImage = item.images?.find(img => img.is_primary) || item.images?.[0];
+          const isIndoorEvents = serviceType === 'indoor_events';
           
           return (
             <Card
               key={item.id}
               className="w-40 flex-shrink-0 cursor-pointer overflow-hidden transition-all hover:shadow-lg"
-              onClick={() => handleItemClick(item.id)}
+              onClick={() => isIndoorEvents ? navigate('/book-event') : handleItemClick(item.id)}
             >
               <div className="relative h-28 w-full overflow-hidden bg-secondary">
                 {primaryImage ? (
@@ -137,14 +138,28 @@ const PopularItems: React.FC<PopularItemsProps> = ({ serviceType, title, limit =
                   <span className="font-semibold text-foreground">
                     ₹{item.price.toFixed(0)}
                   </span>
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7 rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                    onClick={(e) => handleAddToCart(e, item)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  {isIndoorEvents ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 rounded-full border-indoor-events text-indoor-events text-xs px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/book-event');
+                      }}
+                    >
+                      Book
+                    </Button>
+                  ) : (
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 rounded-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                      onClick={(e) => handleAddToCart(e, item)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

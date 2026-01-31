@@ -13,7 +13,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { ArrowLeft, Plus, Minus, Clock, Leaf, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, Clock, Leaf, ShoppingCart, CalendarHeart } from 'lucide-react';
 
 const ItemDetail: React.FC = () => {
   const { itemId } = useParams<{ itemId: string }>();
@@ -96,6 +96,8 @@ const ItemDetail: React.FC = () => {
     return a.display_order - b.display_order;
   }) || [];
 
+  const isIndoorEvents = item.service_type === 'indoor_events';
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
@@ -176,12 +178,35 @@ const ItemDetail: React.FC = () => {
           <span className="text-3xl font-bold text-foreground">
             ₹{item.price.toFixed(0)}
           </span>
+          {isIndoorEvents && (
+            <span className="ml-2 text-sm text-muted-foreground">per plate</span>
+          )}
         </div>
+
+        {/* Indoor Events Notice */}
+        {isIndoorEvents && (
+          <div className="mt-4 rounded-lg border border-indoor-events/30 bg-indoor-events/5 p-4">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-indoor-events">🎉 Event Item:</strong> This dish is available for indoor events and party bookings. 
+              Contact us to customize your menu and get a quotation.
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Add to Cart Bar */}
+      {/* Bottom Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 border-t bg-card p-4 shadow-lg">
-        {currentCartQuantity > 0 ? (
+        {isIndoorEvents ? (
+          // Indoor Events - Show Book Event button (no cart)
+          <Button 
+            className="w-full h-12 text-base bg-indoor-events hover:bg-indoor-events/90" 
+            onClick={() => navigate('/book-event')}
+          >
+            <CalendarHeart className="mr-2 h-5 w-5" />
+            Book Event with This Dish
+          </Button>
+        ) : currentCartQuantity > 0 ? (
+          // Already in cart - show update controls
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
               Already in cart
@@ -215,6 +240,7 @@ const ItemDetail: React.FC = () => {
             </div>
           </div>
         ) : (
+          // Not in cart - show add to cart
           <div className="flex items-center gap-4">
             <div className="flex items-center rounded-lg border">
               <Button
