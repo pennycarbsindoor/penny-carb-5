@@ -330,10 +330,16 @@ const AdminItems: React.FC = () => {
       <div className="border-b bg-card px-4 py-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Food Items</h2>
-          <Button size="sm" onClick={() => handleOpenDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Item
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/admin/categories')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Category
+            </Button>
+            <Button size="sm" onClick={() => handleOpenDialog()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Item
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
