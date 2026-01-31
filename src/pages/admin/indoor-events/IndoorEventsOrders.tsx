@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import IndoorEventsShell from './IndoorEventsShell';
@@ -9,13 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, Search, Calendar, Users, MapPin, Phone, ChefHat } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from '@/hooks/use-toast';
+import { Eye, Search, Calendar, Users, MapPin, Phone, ChefHat, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
@@ -38,6 +41,15 @@ interface IndoorEventOrder {
   event_type: { id: string; name: string; icon: string } | null;
   panchayat: { name: string } | null;
   profile: { name: string; mobile_number: string } | null;
+  assigned_cooks?: { cook_id: string; cook_status: string }[];
+}
+
+interface Cook {
+  id: string;
+  kitchen_name: string;
+  mobile_number: string;
+  is_available: boolean;
+  panchayat?: { name: string };
 }
 
 const statusColors: Record<OrderStatus, string> = {
@@ -54,6 +66,9 @@ const IndoorEventsOrders: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [selectedOrder, setSelectedOrder] = useState<IndoorEventOrder | null>(null);
+  const [cookSelectionOpen, setCookSelectionOpen] = useState(false);
+  const [selectedCooks, setSelectedCooks] = useState<string[]>([]);
+  const queryClient = useQueryClient();
 
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['indoor-events-orders', statusFilter],
@@ -86,10 +101,40 @@ const IndoorEventsOrders: React.FC = () => {
 
       const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p]) || []);
 
+      // Fetch assigned cooks for orders
+      const orderIds = ordersData?.map((o: any) => o.id) || [];
+      const { data: assignedCooks } = await supabase
+        .from('order_assigned_cooks')
+        .select('order_id, cook_id, cook_status')
+        .in('order_id', orderIds);
+
+      const assignedCooksMap = new Map<string, { cook_id: string; cook_status: string }[]>();
+      assignedCooks?.forEach((ac: any) => {
+        if (!assignedCooksMap.has(ac.order_id)) {
+          assignedCooksMap.set(ac.order_id, []);
+        }
+        assignedCooksMap.get(ac.order_id)!.push({ cook_id: ac.cook_id, cook_status: ac.cook_status });
+      });
+
       return ordersData?.map((order: any) => ({
         ...order,
         profile: profileMap.get(order.customer_id) || null,
+        assigned_cooks: assignedCooksMap.get(order.id) || [],
       })) as IndoorEventOrder[];
+    },
+  });
+
+  // Fetch available cooks
+  const { data: cooks } = useQuery({
+    queryKey: ['available-cooks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cooks')
+        .select('id, kitchen_name, mobile_number, is_available, panchayat:panchayats(name)')
+        .eq('is_active', true)
+        .order('kitchen_name');
+      if (error) throw error;
+      return data as Cook[];
     },
   });
 
@@ -113,6 +158,84 @@ const IndoorEventsOrders: React.FC = () => {
       refetch();
       setSelectedOrder(null);
     }
+  };
+
+  const openCookSelection = (order: IndoorEventOrder) => {
+    setSelectedOrder(order);
+    // Pre-select already assigned cooks
+    setSelectedCooks(order.assigned_cooks?.map(ac => ac.cook_id) || []);
+    setCookSelectionOpen(true);
+  };
+
+  const assignCooksMutation = useMutation({
+    mutationFn: async ({ orderId, cookIds }: { orderId: string; cookIds: string[] }) => {
+      // First remove existing assignments
+      await supabase
+        .from('order_assigned_cooks')
+        .delete()
+        .eq('order_id', orderId);
+
+      // Insert new assignments
+      if (cookIds.length > 0) {
+        const assignments = cookIds.map(cookId => ({
+          order_id: orderId,
+          cook_id: cookId,
+          cook_status: 'pending',
+        }));
+
+        const { error } = await supabase
+          .from('order_assigned_cooks')
+          .insert(assignments);
+
+        if (error) throw error;
+      }
+
+      // Update order status to preparing
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({ status: 'preparing' })
+        .eq('id', orderId);
+
+      if (orderError) throw orderError;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Cooks Assigned',
+        description: `${selectedCooks.length} cook(s) assigned and order marked as preparing`,
+      });
+      setCookSelectionOpen(false);
+      setSelectedCooks([]);
+      setSelectedOrder(null);
+      queryClient.invalidateQueries({ queryKey: ['indoor-events-orders'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to assign cooks',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleAssignCooksAndPrepare = () => {
+    if (!selectedOrder || selectedCooks.length === 0) {
+      toast({
+        title: 'Select Cooks',
+        description: 'Please select at least one cook',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    assignCooksMutation.mutate({ orderId: selectedOrder.id, cookIds: selectedCooks });
+  };
+
+  const toggleCookSelection = (cookId: string) => {
+    setSelectedCooks(prev =>
+      prev.includes(cookId)
+        ? prev.filter(id => id !== cookId)
+        : [...prev, cookId]
+    );
   };
 
   return (
@@ -169,6 +292,12 @@ const IndoorEventsOrders: React.FC = () => {
                         <span className={`mr-1.5 h-2 w-2 rounded-full ${statusColors[order.status]}`} />
                         {order.status}
                       </Badge>
+                      {order.assigned_cooks && order.assigned_cooks.length > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          <ChefHat className="h-3 w-3 mr-1" />
+                          {order.assigned_cooks.length} cook(s)
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm font-medium truncate">{order.profile?.name || 'Unknown'}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
@@ -198,7 +327,7 @@ const IndoorEventsOrders: React.FC = () => {
       )}
 
       {/* Order Detail Dialog */}
-      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+      <Dialog open={!!selectedOrder && !cookSelectionOpen} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           {selectedOrder && (
             <>
@@ -256,6 +385,33 @@ const IndoorEventsOrders: React.FC = () => {
                   </CardContent>
                 </Card>
 
+                {/* Assigned Cooks */}
+                {selectedOrder.assigned_cooks && selectedOrder.assigned_cooks.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <ChefHat className="h-4 w-4" />
+                        Assigned Cooks ({selectedOrder.assigned_cooks.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <div className="space-y-2">
+                        {selectedOrder.assigned_cooks.map((ac, idx) => {
+                          const cook = cooks?.find(c => c.id === ac.cook_id);
+                          return (
+                            <div key={ac.cook_id} className="flex items-center justify-between p-2 rounded bg-muted">
+                              <span>{cook?.kitchen_name || 'Unknown Cook'}</span>
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {ac.cook_status}
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Details / Planning Info */}
                 {selectedOrder.event_details && (
                   <Card>
@@ -288,8 +444,9 @@ const IndoorEventsOrders: React.FC = () => {
                     </Button>
                   )}
                   {selectedOrder.status === 'confirmed' && (
-                    <Button size="sm" onClick={() => handleUpdateStatus(selectedOrder.id, 'preparing')}>
-                      Start Preparing
+                    <Button size="sm" onClick={() => openCookSelection(selectedOrder)}>
+                      <ChefHat className="h-4 w-4 mr-1" />
+                      Assign Cooks & Start Preparing
                     </Button>
                   )}
                   {selectedOrder.status === 'preparing' && (
@@ -306,6 +463,62 @@ const IndoorEventsOrders: React.FC = () => {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cook Selection Dialog */}
+      <Dialog open={cookSelectionOpen} onOpenChange={setCookSelectionOpen}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ChefHat className="h-5 w-5" />
+              Select Cooks for Order
+            </DialogTitle>
+            <DialogDescription>
+              Order #{selectedOrder?.order_number} - Select one or more cooks to assign
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-4">
+            {cooks?.map((cook) => (
+              <div
+                key={cook.id}
+                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selectedCooks.includes(cook.id)
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:bg-muted'
+                }`}
+                onClick={() => toggleCookSelection(cook.id)}
+              >
+                <Checkbox
+                  checked={selectedCooks.includes(cook.id)}
+                  onCheckedChange={() => toggleCookSelection(cook.id)}
+                />
+                <div className="flex-1">
+                  <p className="font-medium">{cook.kitchen_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {cook.mobile_number} • {cook.panchayat?.name || 'No panchayat'}
+                  </p>
+                </div>
+                <Badge variant={cook.is_available ? 'default' : 'secondary'}>
+                  {cook.is_available ? 'Online' : 'Offline'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCookSelectionOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignCooksAndPrepare}
+              disabled={selectedCooks.length === 0 || assignCooksMutation.isPending}
+            >
+              {assignCooksMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Assign {selectedCooks.length} Cook(s) & Start Preparing
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </IndoorEventsShell>

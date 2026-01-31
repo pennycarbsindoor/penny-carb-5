@@ -557,6 +557,57 @@ export type Database = {
           },
         ]
       }
+      order_assigned_cooks: {
+        Row: {
+          assigned_at: string
+          cook_id: string
+          cook_status: string
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string
+          responded_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          cook_id: string
+          cook_status?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          responded_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          cook_id?: string
+          cook_status?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          responded_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_assigned_cooks_cook_id_fkey"
+            columns: ["cook_id"]
+            isOneToOne: false
+            referencedRelation: "cooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_assigned_cooks_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string

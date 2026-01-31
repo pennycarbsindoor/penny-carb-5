@@ -35,14 +35,35 @@ export function useCookOrders() {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
+      // First get the cook id for this user
+      const { data: cookData } = await supabase
+        .from('cooks')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!cookData?.id) return [];
+
+      // Fetch assignments from order_assigned_cooks
+      const { data: assignments, error: assignError } = await supabase
+        .from('order_assigned_cooks')
+        .select('order_id, cook_status')
+        .eq('cook_id', cookData.id)
+        .in('cook_status', ['pending', 'accepted', 'preparing', 'cooked']);
+
+      if (assignError) throw assignError;
+      if (!assignments || assignments.length === 0) return [];
+
+      const orderIds = assignments.map(a => a.order_id);
+
+      // Fetch orders
+      const { data: orders, error } = await supabase
         .from('orders')
         .select(`
           id,
           order_number,
           service_type,
           total_amount,
-          cook_status,
           event_date,
           event_details,
           delivery_address,
@@ -50,14 +71,16 @@ export function useCookOrders() {
           created_at,
           customer_id
         `)
-        .eq('assigned_cook_id', user.id)
-        .in('cook_status', ['pending', 'accepted', 'preparing', 'cooked'])
+        .in('id', orderIds)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
+      // Merge cook_status from assignments
+      const assignmentMap = new Map(assignments.map(a => [a.order_id, a.cook_status]));
+      
       // Fetch customer details separately
-      const ordersWithCustomers = await Promise.all((data || []).map(async (order) => {
+      const ordersWithCustomers = await Promise.all((orders || []).map(async (order) => {
         const { data: profile } = await supabase
           .from('profiles')
           .select('name, mobile_number')
@@ -66,6 +89,7 @@ export function useCookOrders() {
         
         return {
           ...order,
+          cook_status: assignmentMap.get(order.id) || 'pending',
           customer: profile || undefined,
         };
       }));
@@ -78,16 +102,31 @@ export function useCookOrders() {
 
 export function useUpdateCookStatus() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: CookStatus }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      // Get cook id
+      const { data: cookData } = await supabase
+        .from('cooks')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!cookData?.id) throw new Error('Cook profile not found');
+
+      // Update the assignment status
       const { error } = await supabase
-        .from('orders')
+        .from('order_assigned_cooks')
         .update({ 
           cook_status: status,
-          cook_responded_at: status === 'accepted' ? new Date().toISOString() : undefined,
+          responded_at: status === 'accepted' ? new Date().toISOString() : undefined,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', orderId);
+        .eq('order_id', orderId)
+        .eq('cook_id', cookData.id);
 
       if (error) throw error;
     },
