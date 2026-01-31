@@ -95,7 +95,7 @@ export function useCookOrders() {
       // Merge cook_status from assignments
       const assignmentMap = new Map(assignments.map(a => [a.order_id, a.cook_status]));
 
-      // Fetch order items assigned to this cook
+      // Fetch all order items for the assigned orders (not filtered by cook since items may not have assigned_cook_id set)
       const { data: orderItems } = await supabase
         .from('order_items')
         .select(`
@@ -107,8 +107,7 @@ export function useCookOrders() {
           total_price,
           food_item:food_items(id, name)
         `)
-        .in('order_id', orderIds)
-        .eq('assigned_cook_id', profile.id);
+        .in('order_id', orderIds);
 
       // Group order items by order_id
       const orderItemsMap = new Map<string, typeof orderItems>();
