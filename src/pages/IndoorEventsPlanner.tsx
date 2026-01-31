@@ -240,6 +240,23 @@ SPECIAL INSTRUCTIONS:
 ${plannerData.eventDetails || 'None'}
       `.trim();
 
+      // Get referral info from session storage and look up user
+      let referredBy: string | null = null;
+      const referralMobile = sessionStorage.getItem('indoor_event_referral');
+      if (referralMobile) {
+        const { data: referrerProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('mobile_number', referralMobile)
+          .single();
+        
+        if (referrerProfile) {
+          referredBy = referrerProfile.user_id;
+        }
+        // Clear the session storage after use
+        sessionStorage.removeItem('indoor_event_referral');
+      }
+
       const { error } = await supabase.from('orders').insert({
         order_number: orderNumber,
         customer_id: user.id,
@@ -254,6 +271,7 @@ ${plannerData.eventDetails || 'None'}
         status: 'pending',
         order_type: 'full_event',
         total_amount: totals.grandTotal,
+        referred_by: referredBy,
       });
 
       if (error) throw error;

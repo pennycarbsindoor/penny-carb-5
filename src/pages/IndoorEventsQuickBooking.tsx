@@ -152,6 +152,23 @@ const IndoorEventsQuickBooking: React.FC = () => {
             .join(', ')
         : 'No specific dishes selected';
 
+      // Get referral info from session storage and look up user
+      let referredBy: string | null = null;
+      const referralMobile = sessionStorage.getItem('indoor_event_referral');
+      if (referralMobile) {
+        const { data: referrerProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('mobile_number', referralMobile)
+          .single();
+        
+        if (referrerProfile) {
+          referredBy = referrerProfile.user_id;
+        }
+        // Clear the session storage after use
+        sessionStorage.removeItem('indoor_event_referral');
+      }
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -168,6 +185,7 @@ const IndoorEventsQuickBooking: React.FC = () => {
           status: 'pending',
           order_type: 'food_only',
           total_amount: estimatedTotal || 0,
+          referred_by: referredBy,
         })
         .select('id')
         .single();
