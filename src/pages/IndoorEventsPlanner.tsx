@@ -65,8 +65,8 @@ export interface PlannerData {
 
 const STEPS = [
   { id: 'event-type', title: 'Event Type', description: 'What occasion?', icon: <CalendarHeart className="h-6 w-6" /> },
-  { id: 'guests', title: 'Guest Count', description: 'How many guests?', icon: <Users className="h-6 w-6" /> },
   { id: 'food', title: 'Food Selection', description: 'Build your menu', icon: <Utensils className="h-6 w-6" /> },
+  { id: 'guests', title: 'Guest Count', description: 'How many guests?', icon: <Users className="h-6 w-6" /> },
   { id: 'services', title: 'Add Services', description: 'Decoration, staff, etc.', icon: <Sparkles className="h-6 w-6" /> },
   { id: 'summary', title: 'Budget Summary', description: 'Review your estimate', icon: <ClipboardList className="h-6 w-6" /> },
   { id: 'models', title: 'Event Models', description: 'Use pre-built packages', icon: <Layers className="h-6 w-6" /> },
@@ -154,11 +154,31 @@ const IndoorEventsPlanner: React.FC = () => {
     setPlannerData((prev) => ({ ...prev, ...updates }));
   };
 
+  // Get step index helper
+  const getStepIndex = (stepId: string) => STEPS.findIndex((s) => s.id === stepId);
+
+  // Open next step in sequence
+  const openNextStep = (currentStepId: string) => {
+    const currentIndex = getStepIndex(currentStepId);
+    if (currentIndex < STEPS.length - 1) {
+      setActiveDialog(STEPS[currentIndex + 1].id);
+    } else {
+      setActiveDialog(null);
+    }
+  };
+
   // Close dialog without auto-opening next
   const closeDialog = () => {
     setActiveDialog(null);
   };
 
+  // Complete step and auto-advance to next
+  const completeAndAdvance = (stepId: string) => {
+    setCompletedSteps((prev) => new Set([...prev, stepId]));
+    openNextStep(stepId);
+  };
+
+  // Complete step and close (for final step or manual close)
   const completeAndClose = (stepId: string) => {
     setCompletedSteps((prev) => new Set([...prev, stepId]));
     setActiveDialog(null);
@@ -428,7 +448,7 @@ ${plannerData.eventDetails || 'None'}
         )}
       </main>
 
-      {/* Step Dialogs */}
+      {/* Step Dialogs - Order: event-type → food → guests → services → summary → models → submit */}
       <StepDialog
         open={activeDialog === 'event-type'}
         onOpenChange={(open) => !open && setActiveDialog(null)}
@@ -437,20 +457,7 @@ ${plannerData.eventDetails || 'None'}
         <EventTypeStep
           selectedEventType={plannerData.eventType}
           onSelect={(eventType) => updatePlannerData({ eventType })}
-          onNext={() => completeAndClose('event-type')}
-        />
-      </StepDialog>
-
-      <StepDialog
-        open={activeDialog === 'guests'}
-        onOpenChange={(open) => !open && setActiveDialog(null)}
-        title="Guest Count"
-      >
-        <GuestCountStep
-          guestCount={plannerData.guestCount}
-          onChange={(guestCount) => updatePlannerData({ guestCount })}
-          onNext={() => completeAndClose('guests')}
-          onBack={closeDialog}
+          onNext={() => completeAndAdvance('event-type')}
         />
       </StepDialog>
 
@@ -463,7 +470,20 @@ ${plannerData.eventDetails || 'None'}
           selectedFoods={plannerData.selectedFoods}
           guestCount={plannerData.guestCount}
           onUpdateFoods={(selectedFoods) => updatePlannerData({ selectedFoods })}
-          onNext={() => completeAndClose('food')}
+          onNext={() => completeAndAdvance('food')}
+          onBack={closeDialog}
+        />
+      </StepDialog>
+
+      <StepDialog
+        open={activeDialog === 'guests'}
+        onOpenChange={(open) => !open && setActiveDialog(null)}
+        title="Guest Count"
+      >
+        <GuestCountStep
+          guestCount={plannerData.guestCount}
+          onChange={(guestCount) => updatePlannerData({ guestCount })}
+          onNext={() => completeAndAdvance('guests')}
           onBack={closeDialog}
         />
       </StepDialog>
@@ -477,7 +497,7 @@ ${plannerData.eventDetails || 'None'}
           selectedServices={plannerData.selectedServices}
           guestCount={plannerData.guestCount}
           onUpdateServices={(selectedServices) => updatePlannerData({ selectedServices })}
-          onNext={() => completeAndClose('services')}
+          onNext={() => completeAndAdvance('services')}
           onBack={closeDialog}
         />
       </StepDialog>
@@ -490,7 +510,7 @@ ${plannerData.eventDetails || 'None'}
         <BudgetSummaryStep
           plannerData={plannerData}
           totals={totals}
-          onNext={() => completeAndClose('summary')}
+          onNext={() => completeAndAdvance('summary')}
           onBack={closeDialog}
         />
       </StepDialog>
@@ -505,7 +525,7 @@ ${plannerData.eventDetails || 'None'}
           onApplyModel={(foods, services) => {
             updatePlannerData({ selectedFoods: foods, selectedServices: services });
           }}
-          onNext={() => completeAndClose('models')}
+          onNext={() => completeAndAdvance('models')}
           onBack={closeDialog}
         />
       </StepDialog>
