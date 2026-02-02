@@ -50,19 +50,29 @@ const IndoorEventsCommissions: React.FC = () => {
   const { data: referrals, isLoading: isLoadingReferrals } = useQuery({
     queryKey: ['indoor-events-commissions'],
     queryFn: async () => {
+      // First get referrals with orders
       const { data, error } = await supabase
         .from('referrals')
         .select(`
-          id, commission_percent, commission_amount, status, created_at, paid_at,
-          order:orders(id, order_number, service_type, total_amount, event_date, referral_code),
-          referrer:profiles!referrals_referrer_id_fkey(name, mobile_number)
+          id, commission_percent, commission_amount, status, created_at, paid_at, referrer_id,
+          order:orders(id, order_number, service_type, total_amount, event_date, referral_code)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      if (!data || data.length === 0) return [];
+      
+      // Get referrer profiles separately (since no FK exists)
+      const referrerIds = data.map(r => r.referrer_id).filter(Boolean);
+      const { data: referrerProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, mobile_number')
+        .in('user_id', referrerIds);
+      
+      const referrerMap = new Map(referrerProfiles?.map(p => [p.user_id, { name: p.name, mobile_number: p.mobile_number }]) || []);
       
       // Get customer profiles separately
-      const orderIds = data?.map(r => r.order?.id).filter(Boolean) || [];
+      const orderIds = data.map(r => r.order?.id).filter(Boolean) || [];
       const { data: orders } = await supabase
         .from('orders')
         .select('id, customer_id')
@@ -78,11 +88,12 @@ const IndoorEventsCommissions: React.FC = () => {
       const customerMap = new Map(customerProfiles?.map(p => [p.user_id, p]) || []);
       const orderCustomerMap = new Map(orders?.map(o => [o.id, customerMap.get(o.customer_id)]) || []);
       
-      // Filter for indoor_events orders and add customer info
+      // Filter for indoor_events orders and add customer + referrer info
       return data
-        ?.filter((r: any) => r.order?.service_type === 'indoor_events')
+        .filter((r: any) => r.order?.service_type === 'indoor_events')
         .map((r: any) => ({
           ...r,
+          referrer: referrerMap.get(r.referrer_id) || null,
           order: r.order ? {
             ...r.order,
             profile: orderCustomerMap.get(r.order.id) || null
