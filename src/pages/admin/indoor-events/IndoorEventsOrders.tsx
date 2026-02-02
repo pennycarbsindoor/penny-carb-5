@@ -167,6 +167,27 @@ const IndoorEventsOrders: React.FC = () => {
     },
   });
 
+  // Fetch cook dish allocations to filter cooks per dish
+  const { data: cookDishAllocations } = useQuery({
+    queryKey: ['cook-dish-allocations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cook_dishes')
+        .select('cook_id, food_item_id');
+      if (error) throw error;
+      return data as { cook_id: string; food_item_id: string }[];
+    },
+  });
+
+  // Helper to get cooks who can make a specific dish
+  const getCooksForDish = (foodItemId: string): Cook[] => {
+    if (!cooks || !cookDishAllocations) return [];
+    const allocatedCookIds = cookDishAllocations
+      .filter(a => a.food_item_id === foodItemId)
+      .map(a => a.cook_id);
+    return cooks.filter(c => allocatedCookIds.includes(c.id));
+  };
+
   const filteredOrders = orders?.filter((o) => {
     if (!search) return true;
     const s = search.toLowerCase();
@@ -702,9 +723,10 @@ const IndoorEventsOrders: React.FC = () => {
               <>
                 {/* Dishes with cook selector */}
                 <div className="space-y-3">
-                  {selectedOrder.order_items.map((item) => {
+                {selectedOrder.order_items.map((item) => {
                     const assignedCookId = dishCookAssignments.get(item.id) || item.assigned_cook_id || '';
                     const assignedCook = cooks?.find(c => c.id === assignedCookId);
+                    const eligibleCooks = getCooksForDish(item.food_item_id);
                     
                     return (
                       <div key={item.id} className="border rounded-lg p-3 space-y-2">
@@ -715,11 +737,17 @@ const IndoorEventsOrders: React.FC = () => {
                               Qty: {item.quantity} × ₹{item.unit_price} = ₹{item.total_price}
                             </p>
                           </div>
+                          {eligibleCooks.length === 0 && (
+                            <Badge variant="destructive" className="text-xs">
+                              No cooks allocated
+                            </Badge>
+                          )}
                         </div>
                         
                         <Select
                           value={dishCookAssignments.get(item.id) || 'none'}
                           onValueChange={(value) => handleDishCookChange(item.id, value)}
+                          disabled={eligibleCooks.length === 0}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select cook for this dish">
@@ -729,7 +757,9 @@ const IndoorEventsOrders: React.FC = () => {
                                   {assignedCook.kitchen_name}
                                 </span>
                               ) : (
-                                <span className="text-muted-foreground">Select cook...</span>
+                                <span className="text-muted-foreground">
+                                  {eligibleCooks.length === 0 ? 'No cooks available for this dish' : 'Select cook...'}
+                                </span>
                               )}
                             </SelectValue>
                           </SelectTrigger>
@@ -737,7 +767,7 @@ const IndoorEventsOrders: React.FC = () => {
                             <SelectItem value="none">
                               <span className="text-muted-foreground">No cook assigned</span>
                             </SelectItem>
-                            {cooks?.map((cook) => (
+                            {eligibleCooks.map((cook) => (
                               <SelectItem key={cook.id} value={cook.id}>
                                 <div className="flex items-center gap-2">
                                   <span>{cook.kitchen_name}</span>
