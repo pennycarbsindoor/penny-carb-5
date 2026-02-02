@@ -41,7 +41,7 @@ export function useCookDishRequests() {
         .from('cook_dish_requests')
         .select(`
           *,
-          food_item:food_items(id, name, price, is_vegetarian),
+          food_item:food_items!cook_dish_requests_food_item_id_fkey(id, name, price, is_vegetarian),
           dish_category:food_categories(id, name)
         `)
         .eq('cook_id', profile.id)
@@ -96,7 +96,7 @@ export function useAdminDishRequests() {
         .select(`
           *,
           cook:cooks(id, kitchen_name, mobile_number, panchayat:panchayats(name)),
-          food_item:food_items(id, name, price, is_vegetarian),
+          food_item:food_items!cook_dish_requests_food_item_id_fkey(id, name, price, is_vegetarian),
           dish_category:food_categories(id, name)
         `)
         .order('created_at', { ascending: false });
