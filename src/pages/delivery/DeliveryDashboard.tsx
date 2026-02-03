@@ -9,6 +9,7 @@ import {
   useAcceptDelivery,
   useUpdateDeliveryAvailability
 } from '@/hooks/useDeliveryStaff';
+import { useDeliveryNotifications } from '@/hooks/useDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
+import NewOrderAlert from '@/components/delivery/NewOrderAlert';
 import { 
   Truck, 
   LogOut, 
@@ -26,7 +28,8 @@ import {
   Phone,
   Clock,
   CheckCircle2,
-  Navigation
+  Navigation,
+  Bell
 } from 'lucide-react';
 import type { DeliveryStatus } from '@/types/delivery';
 
@@ -47,6 +50,15 @@ const DeliveryDashboard: React.FC = () => {
   const updateStatus = useUpdateDeliveryStatus();
   const acceptDelivery = useAcceptDelivery();
   const updateAvailability = useUpdateDeliveryAvailability();
+  
+  // Real-time notifications
+  const { 
+    pendingOrders, 
+    showAlert, 
+    dismissAlert, 
+    removeOrder,
+    ORDER_ACCEPT_CUTOFF_SECONDS 
+  } = useDeliveryNotifications();
 
   const handleLogout = async () => {
     await signOut();
@@ -72,6 +84,7 @@ const DeliveryDashboard: React.FC = () => {
   const handleAcceptOrder = async (orderId: string) => {
     try {
       await acceptDelivery.mutateAsync(orderId);
+      removeOrder(orderId); // Remove from pending alerts
       toast({
         title: "Order Accepted",
         description: "You've been assigned to this delivery",
@@ -142,12 +155,28 @@ const DeliveryDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-6">
+      {/* New Order Alert Dialog */}
+      <NewOrderAlert
+        open={showAlert}
+        orders={pendingOrders}
+        onAccept={handleAcceptOrder}
+        onDismiss={dismissAlert}
+        isAccepting={acceptDelivery.isPending}
+        cutoffSeconds={ORDER_ACCEPT_CUTOFF_SECONDS}
+      />
+
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Truck className="h-6 w-6 text-primary" />
             <span className="font-semibold">{profile.name}</span>
+            {pendingOrders.length > 0 && (
+              <Badge variant="destructive" className="animate-pulse">
+                <Bell className="h-3 w-3 mr-1" />
+                {pendingOrders.length}
+              </Badge>
+            )}
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />

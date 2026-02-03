@@ -1,8 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminDeliveryAlerts } from '@/hooks/useDeliveryNotifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import UnacceptedOrdersAlert from '@/components/admin/UnacceptedOrdersAlert';
 import { 
   CalendarHeart,
   ChefHat,
@@ -18,12 +21,19 @@ import {
   ClipboardList,
   Tag,
   Utensils,
-  FolderOpen
+  FolderOpen,
+  AlertTriangle
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { profile, role, signOut } = useAuth();
+  const { 
+    unacceptedOrders, 
+    showAdminAlert, 
+    dismissAdminAlert, 
+    removeAdminAlert 
+  } = useAdminDeliveryAlerts();
 
   const isAdmin = role === 'super_admin' || role === 'admin';
 
@@ -96,6 +106,14 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Unaccepted Orders Alert for Admin */}
+      <UnacceptedOrdersAlert
+        open={showAdminAlert}
+        orders={unacceptedOrders}
+        onDismiss={dismissAdminAlert}
+        onRemove={removeAdminAlert}
+      />
+
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="flex h-14 items-center justify-between px-4">
@@ -104,6 +122,16 @@ const AdminDashboard: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="font-display text-lg font-semibold">Admin Panel</h1>
+            {unacceptedOrders.length > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="animate-pulse cursor-pointer"
+                onClick={() => dismissAdminAlert()}
+              >
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                {unacceptedOrders.length} Unassigned
+              </Badge>
+            )}
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
