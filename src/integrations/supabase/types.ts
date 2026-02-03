@@ -488,6 +488,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          assigned_panchayat_ids: string[] | null
           assigned_wards: number[] | null
           created_at: string
           created_by: string | null
@@ -509,6 +510,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          assigned_panchayat_ids?: string[] | null
           assigned_wards?: number[] | null
           created_at?: string
           created_by?: string | null
@@ -530,6 +532,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          assigned_panchayat_ids?: string[] | null
           assigned_wards?: number[] | null
           created_at?: string
           created_by?: string | null

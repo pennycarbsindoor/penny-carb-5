@@ -11,6 +11,7 @@ export interface DeliveryStaff {
   vehicle_type: string;
   vehicle_number: string | null;
   panchayat_id: string | null;
+  assigned_panchayat_ids: string[];
   assigned_wards: number[];
   staff_type: DeliveryStaffType;
   is_active: boolean;
@@ -27,6 +28,10 @@ export interface DeliveryStaff {
     id: string;
     name: string;
   };
+  panchayats?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface DeliveryWallet {

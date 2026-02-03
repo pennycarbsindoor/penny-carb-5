@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Truck, Phone, MapPin, CheckCircle, XCircle, Bike, Car, Plus, Search, User, Loader2 } from 'lucide-react';
+import { ArrowLeft, Truck, Phone, MapPin, CheckCircle, XCircle, Bike, Car, Plus, Search, User, Loader2, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { DeliveryStaff } from '@/types/delivery';
 
 const vehicleIcons: Record<string, React.ReactNode> = {
@@ -59,14 +60,46 @@ const AdminDeliveryStaff: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('panchayats')
-        .select('id, name')
+        .select('id, name, ward_count')
         .eq('is_active', true)
         .order('name');
       if (error) throw error;
       return data;
     },
   });
-  const [selectedPanchayat, setSelectedPanchayat] = useState('');
+  
+  // Multi-panchayat and multi-ward selection
+  const [selectedPanchayats, setSelectedPanchayats] = useState<string[]>([]);
+  const [selectedWards, setSelectedWards] = useState<number[]>([]);
+
+  // Get ward count for selected panchayats (use max ward count)
+  const maxWardCount = panchayats
+    ?.filter(p => selectedPanchayats.includes(p.id))
+    .reduce((max, p) => Math.max(max, p.ward_count || 25), 0) || 25;
+
+  const togglePanchayat = (panchayatId: string) => {
+    setSelectedPanchayats(prev => 
+      prev.includes(panchayatId) 
+        ? prev.filter(id => id !== panchayatId)
+        : [...prev, panchayatId]
+    );
+  };
+
+  const toggleWard = (ward: number) => {
+    setSelectedWards(prev =>
+      prev.includes(ward)
+        ? prev.filter(w => w !== ward)
+        : [...prev, ward]
+    );
+  };
+
+  const selectAllWards = () => {
+    setSelectedWards(Array.from({ length: maxWardCount }, (_, i) => i + 1));
+  };
+
+  const clearAllWards = () => {
+    setSelectedWards([]);
+  };
 
   // Search users by mobile
   const handleSearchUsers = async () => {
@@ -125,7 +158,9 @@ const AdminDeliveryStaff: React.FC = () => {
           vehicle_type: newStaffData.vehicle_type,
           vehicle_number: newStaffData.vehicle_number || null,
           staff_type: newStaffData.staff_type,
-          panchayat_id: selectedPanchayat || null,
+          panchayat_id: selectedPanchayats[0] || null,
+          assigned_panchayat_ids: selectedPanchayats,
+          assigned_wards: selectedWards,
           is_approved: true,
           approved_at: new Date().toISOString(),
         });
@@ -156,7 +191,8 @@ const AdminDeliveryStaff: React.FC = () => {
     setSearchResults([]);
     setSelectedUser(null);
     setNewStaffData({ vehicle_type: 'motorcycle', vehicle_number: '', staff_type: 'registered_partner' });
-    setSelectedPanchayat('');
+    setSelectedPanchayats([]);
+    setSelectedWards([]);
   };
 
   const { data: pendingStaff, isLoading: pendingLoading } = useQuery({
@@ -172,7 +208,11 @@ const AdminDeliveryStaff: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as DeliveryStaff[];
+      return (data || []).map(staff => ({
+        ...staff,
+        assigned_panchayat_ids: staff.assigned_panchayat_ids || [],
+        assigned_wards: staff.assigned_wards || [],
+      })) as DeliveryStaff[];
     },
   });
 
@@ -189,7 +229,11 @@ const AdminDeliveryStaff: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as DeliveryStaff[];
+      return (data || []).map(staff => ({
+        ...staff,
+        assigned_panchayat_ids: staff.assigned_panchayat_ids || [],
+        assigned_wards: staff.assigned_wards || [],
+      })) as DeliveryStaff[];
     },
   });
 
@@ -286,7 +330,20 @@ const AdminDeliveryStaff: React.FC = () => {
                 <Phone className="h-3 w-3" />
                 {staff.mobile_number}
               </p>
-              {staff.panchayat && (
+              {/* Show multiple panchayats or single panchayat */}
+              {staff.assigned_panchayat_ids && staff.assigned_panchayat_ids.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  {panchayats?.filter(p => staff.assigned_panchayat_ids.includes(p.id)).slice(0, 2).map((p, idx, arr) => (
+                    <span key={p.id}>
+                      {p.name}{idx < arr.length - 1 && ', '}
+                    </span>
+                  ))}
+                  {staff.assigned_panchayat_ids.length > 2 && (
+                    <span className="text-muted-foreground">+{staff.assigned_panchayat_ids.length - 2} more</span>
+                  )}
+                </div>
+              ) : staff.panchayat && (
                 <p className="text-sm text-muted-foreground flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
                   {staff.panchayat.name}
@@ -471,16 +528,78 @@ const AdminDeliveryStaff: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Panchayat (Optional)</Label>
-                      <Select value={selectedPanchayat} onValueChange={setSelectedPanchayat}>
-                        <SelectTrigger><SelectValue placeholder="Select panchayat" /></SelectTrigger>
-                        <SelectContent>
-                          {panchayats?.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Panchayats (Select multiple)</Label>
+                      <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
+                        {panchayats?.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                            onClick={() => togglePanchayat(p.id)}
+                          >
+                            <Checkbox
+                              checked={selectedPanchayats.includes(p.id)}
+                              onCheckedChange={() => togglePanchayat(p.id)}
+                            />
+                            <span className="text-sm">{p.name}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">({p.ward_count} wards)</span>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedPanchayats.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {selectedPanchayats.map(pId => {
+                            const p = panchayats?.find(x => x.id === pId);
+                            return p ? (
+                              <Badge key={pId} variant="secondary" className="flex items-center gap-1">
+                                {p.name}
+                                <X 
+                                  className="h-3 w-3 cursor-pointer" 
+                                  onClick={(e) => { e.stopPropagation(); togglePanchayat(pId); }}
+                                />
+                              </Badge>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
                     </div>
+
+                    {selectedPanchayats.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Wards (Select multiple)</Label>
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={selectAllWards}>
+                              Select All
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={clearAllWards}>
+                              Clear
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto border rounded-md p-2">
+                          <div className="grid grid-cols-5 gap-1">
+                            {Array.from({ length: maxWardCount }, (_, i) => i + 1).map(ward => (
+                              <div
+                                key={ward}
+                                className={`flex items-center justify-center p-2 rounded cursor-pointer text-sm border transition-colors ${
+                                  selectedWards.includes(ward) 
+                                    ? 'bg-primary text-primary-foreground border-primary' 
+                                    : 'hover:bg-muted border-border'
+                                }`}
+                                onClick={() => toggleWard(ward)}
+                              >
+                                {ward}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {selectedWards.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {selectedWards.length} ward(s) selected
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <Button 
                       className="w-full" 
