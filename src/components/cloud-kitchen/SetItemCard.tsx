@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Leaf, Plus, Minus } from 'lucide-react';
+import { Leaf, Plus, Minus, ChefHat, Star } from 'lucide-react';
 import type { CustomerCloudKitchenItem } from '@/hooks/useCustomerCloudKitchen';
 
 interface SetItemCardProps {
@@ -49,7 +49,7 @@ const SetItemCard: React.FC<SetItemCardProps> = ({
     <Card className="overflow-hidden">
       <div className="flex">
         {/* Image */}
-        <div className="w-28 h-28 bg-muted flex-shrink-0">
+        <div className="w-28 h-32 bg-muted flex-shrink-0 relative">
           {primaryImage ? (
             <img
               src={primaryImage}
@@ -75,7 +75,19 @@ const SetItemCard: React.FC<SetItemCardProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-1 mt-1">
+            {/* Cook Info */}
+            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <ChefHat className="h-3 w-3" />
+              <span className="font-medium text-foreground">{item.cook.kitchen_name}</span>
+              {item.cook.rating && (
+                <span className="flex items-center gap-0.5 ml-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  {item.cook.rating.toFixed(1)}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-1 mt-1.5">
               <Badge variant="outline" className="text-xs">
                 {setSize} pcs/set
               </Badge>

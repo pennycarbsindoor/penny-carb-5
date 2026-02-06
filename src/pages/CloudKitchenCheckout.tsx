@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, MapPin, Clock, Loader2, ChefHat, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { CookInfo } from '@/hooks/useCustomerCloudKitchen';
 
 interface CartItemData {
   item: {
@@ -20,6 +21,8 @@ interface CartItemData {
     price: number;
     set_size: number;
     min_order_sets: number;
+    cook: CookInfo;
+    unique_key: string;
   };
   quantity: number;
 }
@@ -127,6 +130,19 @@ const CloudKitchenCheckout: React.FC = () => {
   const deliveryFee = 0; // Free delivery
   const grandTotal = totalAmount + deliveryFee;
 
+  // Group items by cook for display
+  const itemsByCook = cartItems.reduce((acc, cartItem) => {
+    const cookId = cartItem.item.cook.id;
+    if (!acc[cookId]) {
+      acc[cookId] = {
+        cook: cartItem.item.cook,
+        items: [],
+      };
+    }
+    acc[cookId].items.push(cartItem);
+    return acc;
+  }, {} as Record<string, { cook: CookInfo; items: CartItemData[] }>);
+
   const handlePlaceOrder = async () => {
     if (!deliveryAddress.trim()) {
       toast({
@@ -143,20 +159,14 @@ const CloudKitchenCheckout: React.FC = () => {
       // Generate order number
       const orderNumber = `CK${Date.now()}`;
 
-      // Find available cooks for cloud kitchen in this panchayat
-      const { data: availableCooks } = await supabase
-        .from('cooks')
-        .select('id')
-        .eq('is_active', true)
-        .eq('is_available', true)
-        .eq('panchayat_id', selectedPanchayat!.id)
-        .contains('allowed_order_types', ['cloud_kitchen'])
-        .limit(1);
+      // Get all unique cooks from cart items
+      const cookIds = [...new Set(cartItems.map(ci => ci.item.cook.id))];
+      
+      // For now, if there are multiple cooks, we assign to the first one
+      // TODO: Support multi-cook orders (split into separate orders)
+      const primaryCookId = cookIds[0];
 
-      const assignedCookId = availableCooks?.[0]?.id || null;
-
-      // Create the order with cloud_kitchen_slot_id and proper status
-      // Note: Cook assignment is managed via order_assigned_cooks table, not orders.assigned_cook_id
+      // Create the order with the selected cook
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -169,24 +179,24 @@ const CloudKitchenCheckout: React.FC = () => {
           delivery_address: deliveryAddress,
           delivery_instructions: deliveryInstructions || null,
           cloud_kitchen_slot_id: division.id,
-          status: 'confirmed', // Auto-confirm cloud kitchen orders
-          cook_status: 'pending', // Waiting for cook to prepare
-          delivery_status: 'pending', // Waiting for delivery assignment
-          cook_assignment_status: assignedCookId ? 'pending' : 'unassigned',
+          status: 'pending', // Pending until cook accepts
+          cook_status: 'pending',
+          delivery_status: 'pending',
+          cook_assignment_status: 'pending',
         }])
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      // Create order items
+      // Create order items with the specific cook assigned to each item
       const orderItems = cartItems.map(cartItem => ({
         order_id: order.id,
         food_item_id: cartItem.item.id,
-        quantity: cartItem.quantity * (cartItem.item.set_size || 1), // Total individual items
+        quantity: cartItem.quantity * (cartItem.item.set_size || 1),
         unit_price: cartItem.item.price,
         total_price: cartItem.item.price * cartItem.quantity * (cartItem.item.set_size || 1),
-        assigned_cook_id: assignedCookId,
+        assigned_cook_id: cartItem.item.cook.id, // Assign to the selected cook
       }));
 
       const { error: itemsError } = await supabase
@@ -195,14 +205,14 @@ const CloudKitchenCheckout: React.FC = () => {
 
       if (itemsError) throw itemsError;
 
-      // Create cook assignment in order_assigned_cooks table (this is what cooks see)
-      if (assignedCookId) {
+      // Create cook assignments for each unique cook
+      for (const cookId of cookIds) {
         const { error: assignError } = await supabase
           .from('order_assigned_cooks')
           .insert([{
             order_id: order.id,
-            cook_id: assignedCookId,
-            cook_status: 'pending',
+            cook_id: cookId,
+            cook_status: 'pending', // Pending until cook accepts
             assigned_at: new Date().toISOString(),
           }]);
 
@@ -213,7 +223,7 @@ const CloudKitchenCheckout: React.FC = () => {
 
       toast({
         title: 'Order Placed!',
-        description: `Your order #${order.order_number} has been placed for ${division.name}`,
+        description: `Your order #${order.order_number} has been sent to the cook for confirmation`,
       });
 
       navigate('/orders');
@@ -296,25 +306,33 @@ const CloudKitchenCheckout: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Order Summary */}
+        {/* Order Summary - Grouped by Cook */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Order Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {cartItems.map((cartItem) => {
-              const setSize = cartItem.item.set_size || 1;
-              const itemTotal = cartItem.item.price * cartItem.quantity * setSize;
-              return (
-                <div key={cartItem.item.id} className="flex justify-between text-sm">
-                  <span>
-                    {cartItem.item.name} × {cartItem.quantity} {cartItem.quantity > 1 ? 'sets' : 'set'}
-                    {setSize > 1 && <span className="text-muted-foreground"> ({setSize * cartItem.quantity} pcs)</span>}
-                  </span>
-                  <span>₹{itemTotal.toFixed(0)}</span>
+          <CardContent className="space-y-4">
+            {Object.values(itemsByCook).map(({ cook, items }) => (
+              <div key={cook.id} className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <ChefHat className="h-4 w-4" />
+                  <span>{cook.kitchen_name}</span>
                 </div>
-              );
-            })}
+                {items.map((cartItem) => {
+                  const setSize = cartItem.item.set_size || 1;
+                  const itemTotal = cartItem.item.price * cartItem.quantity * setSize;
+                  return (
+                    <div key={cartItem.item.unique_key} className="flex justify-between text-sm pl-6">
+                      <span>
+                        {cartItem.item.name} × {cartItem.quantity} {cartItem.quantity > 1 ? 'sets' : 'set'}
+                        {setSize > 1 && <span className="text-muted-foreground"> ({setSize * cartItem.quantity} pcs)</span>}
+                      </span>
+                      <span>₹{itemTotal.toFixed(0)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
             <Separator />
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>

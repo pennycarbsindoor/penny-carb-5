@@ -1,6 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface CookInfo {
+  id: string;
+  kitchen_name: string;
+  rating: number | null;
+}
+
 export interface CustomerCloudKitchenItem {
   id: string;
   name: string;
@@ -15,6 +21,10 @@ export interface CustomerCloudKitchenItem {
     image_url: string;
     is_primary: boolean;
   }[];
+  // Cook info for this specific dish-cook combination
+  cook: CookInfo;
+  // Unique key combining food item and cook
+  unique_key: string;
 }
 
 export interface ActiveDivision {
@@ -139,29 +149,70 @@ export function useCustomerDivisions() {
 
 export function useCustomerDivisionItems(divisionId: string | null) {
   return useQuery({
-    queryKey: ['customer-division-items', divisionId],
+    queryKey: ['customer-division-items-with-cooks', divisionId],
     queryFn: async () => {
       if (!divisionId) return [];
 
+      // Fetch dishes with their allocated cooks via cook_dishes table
       const { data, error } = await supabase
-        .from('food_items')
+        .from('cook_dishes')
         .select(`
           id,
-          name,
-          description,
-          price,
-          is_vegetarian,
-          set_size,
-          min_order_sets,
-          cloud_kitchen_slot_id,
-          images:food_item_images(id, image_url, is_primary)
+          cook_id,
+          food_item_id,
+          cooks!inner(
+            id,
+            kitchen_name,
+            rating,
+            is_active,
+            is_available
+          ),
+          food_items!inner(
+            id,
+            name,
+            description,
+            price,
+            is_vegetarian,
+            set_size,
+            min_order_sets,
+            cloud_kitchen_slot_id,
+            is_available,
+            food_item_images(id, image_url, is_primary)
+          )
         `)
-        .eq('cloud_kitchen_slot_id', divisionId)
-        .eq('is_available', true)
-        .order('name');
+        .eq('food_items.cloud_kitchen_slot_id', divisionId)
+        .eq('food_items.is_available', true)
+        .eq('cooks.is_active', true)
+        .eq('cooks.is_available', true);
 
       if (error) throw error;
-      return (data || []) as CustomerCloudKitchenItem[];
+
+      // Transform the data to show each dish-cook combination as a separate item
+      const itemsWithCooks: CustomerCloudKitchenItem[] = (data || []).map((row: any) => ({
+        id: row.food_items.id,
+        name: row.food_items.name,
+        description: row.food_items.description,
+        price: row.food_items.price,
+        is_vegetarian: row.food_items.is_vegetarian,
+        set_size: row.food_items.set_size || 1,
+        min_order_sets: row.food_items.min_order_sets || 1,
+        cloud_kitchen_slot_id: row.food_items.cloud_kitchen_slot_id,
+        images: row.food_items.food_item_images || [],
+        cook: {
+          id: row.cooks.id,
+          kitchen_name: row.cooks.kitchen_name,
+          rating: row.cooks.rating,
+        },
+        // Create unique key combining food item and cook
+        unique_key: `${row.food_items.id}_${row.cooks.id}`,
+      }));
+
+      // Sort by dish name, then by cook name
+      return itemsWithCooks.sort((a, b) => {
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) return nameCompare;
+        return a.cook.kitchen_name.localeCompare(b.cook.kitchen_name);
+      });
     },
     enabled: !!divisionId,
   });
