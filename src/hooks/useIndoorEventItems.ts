@@ -40,6 +40,7 @@ export function useIndoorEventItems() {
           price,
           is_vegetarian,
           category_id,
+          serves_persons,
           food_categories!category_id (
             id,
             name
