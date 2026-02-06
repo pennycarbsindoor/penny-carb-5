@@ -355,6 +355,10 @@ const AdminUsers: React.FC = () => {
       <AdminNavbar />
 
       <main className="p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">User Management</h1>
+        </div>
+        
         <UsersFilters
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
