@@ -99,7 +99,7 @@ const IndoorEvents: React.FC = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => navigate(-1)}
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
             className="text-white hover:bg-white/20"
           >
             <ArrowLeft className="h-5 w-5" />
