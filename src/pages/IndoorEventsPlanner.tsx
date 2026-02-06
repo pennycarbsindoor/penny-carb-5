@@ -27,7 +27,8 @@ import StepDialog from '@/components/indoor-events/StepDialog';
 import EventTypeStep from '@/components/indoor-events/EventTypeStep';
 import GuestCountStep from '@/components/indoor-events/GuestCountStep';
 import FoodSelectionStep from '@/components/indoor-events/FoodSelectionStep';
-import ServicesStep from '@/components/indoor-events/ServicesStep';
+import ServicesStep, { AVAILABLE_SERVICES } from '@/components/indoor-events/ServicesStep';
+import ServiceOptionDialog from '@/components/indoor-events/ServiceOptionDialog';
 import BudgetSummaryStep from '@/components/indoor-events/BudgetSummaryStep';
 import EventModelsStep from '@/components/indoor-events/EventModelsStep';
 import SubmitPlanningStep from '@/components/indoor-events/SubmitPlanningStep';
@@ -125,6 +126,8 @@ const IndoorEventsPlanner: React.FC = () => {
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(initialCompletedSteps);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [servicePopupIndex, setServicePopupIndex] = useState<number | null>(null);
+  const [showServicePopup, setShowServicePopup] = useState(false);
 
   const [plannerData, setPlannerData] = useState<PlannerData>({
     eventType: initialEventType,
@@ -187,8 +190,65 @@ const IndoorEventsPlanner: React.FC = () => {
   // Complete step and auto-advance to next
   const completeAndAdvance = (stepId: string) => {
     setCompletedSteps((prev) => new Set([...prev, stepId]));
-    setActiveDialog(null); // Close current dialog first
-    openNextStep(stepId);  // Then open next after delay
+    setActiveDialog(null);
+
+    // After food selection, start sequential service popups
+    if (stepId === 'food') {
+      // Initialize services if not already done
+      if (plannerData.selectedServices.length === 0) {
+        updatePlannerData({
+          selectedServices: AVAILABLE_SERVICES.map((s) => ({ ...s, enabled: false })),
+        });
+      }
+      setTimeout(() => {
+        setServicePopupIndex(0);
+        setShowServicePopup(true);
+      }, 150);
+      return;
+    }
+
+    openNextStep(stepId);
+  };
+
+  // Handle accepting a service in sequential popup
+  const handleServiceAccept = () => {
+    if (servicePopupIndex === null) return;
+    setPlannerData((prev) => {
+      const services = prev.selectedServices.length > 0
+        ? prev.selectedServices
+        : AVAILABLE_SERVICES.map((s) => ({ ...s, enabled: false }));
+      return {
+        ...prev,
+        selectedServices: services.map((s, i) =>
+          i === servicePopupIndex ? { ...s, enabled: true } : s
+        ),
+      };
+    });
+    advanceServicePopup();
+  };
+
+  // Handle skipping a service
+  const handleServiceSkip = () => {
+    advanceServicePopup();
+  };
+
+  // Move to next service or finish
+  const advanceServicePopup = () => {
+    const nextIndex = (servicePopupIndex ?? 0) + 1;
+    setShowServicePopup(false);
+    if (nextIndex < AVAILABLE_SERVICES.length) {
+      setTimeout(() => {
+        setServicePopupIndex(nextIndex);
+        setShowServicePopup(true);
+      }, 200);
+    } else {
+      // All services reviewed - mark complete and open summary
+      setServicePopupIndex(null);
+      setCompletedSteps((prev) => new Set([...prev, 'services']));
+      setTimeout(() => {
+        setActiveDialog('summary');
+      }, 200);
+    }
   };
 
   // Complete step and close (for final step or manual close)
@@ -502,6 +562,23 @@ ${plannerData.eventDetails || 'None'}
         />
       </StepDialog>
 
+      {/* Sequential Service Option Dialogs */}
+      <ServiceOptionDialog
+        open={showServicePopup}
+        service={
+          servicePopupIndex !== null
+            ? (plannerData.selectedServices[servicePopupIndex] ||
+               { ...AVAILABLE_SERVICES[servicePopupIndex], enabled: false })
+            : null
+        }
+        guestCount={plannerData.guestCount}
+        currentIndex={servicePopupIndex ?? 0}
+        totalCount={AVAILABLE_SERVICES.length}
+        onAccept={handleServiceAccept}
+        onSkip={handleServiceSkip}
+      />
+
+      {/* Manual services editing (when clicking the services card) */}
       <StepDialog
         open={activeDialog === 'services'}
         onOpenChange={(open) => !open && setActiveDialog(null)}
@@ -511,7 +588,7 @@ ${plannerData.eventDetails || 'None'}
           selectedServices={plannerData.selectedServices}
           guestCount={plannerData.guestCount}
           onUpdateServices={(selectedServices) => updatePlannerData({ selectedServices })}
-          onNext={() => completeAndAdvance('services')}
+          onNext={() => completeAndClose('services')}
           onBack={closeDialog}
         />
       </StepDialog>

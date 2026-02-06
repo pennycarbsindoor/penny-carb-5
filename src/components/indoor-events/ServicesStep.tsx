@@ -23,7 +23,7 @@ interface ServicesStepProps {
 }
 
 // Predefined services - in production, fetch from database
-const AVAILABLE_SERVICES: Omit<SelectedService, 'enabled'>[] = [
+export const AVAILABLE_SERVICES: Omit<SelectedService, 'enabled'>[] = [
   {
     id: 'live-counter',
     name: 'Live Counter',
