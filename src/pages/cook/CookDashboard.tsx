@@ -44,6 +44,7 @@ const statusConfig: Record<CookStatus, { label: string; color: string; icon: Rea
   preparing: { label: 'Preparing', color: 'bg-orange-100 text-orange-800', icon: <Flame className="h-4 w-4" /> },
   cooked: { label: 'Cooked', color: 'bg-purple-100 text-purple-800', icon: <UtensilsCrossed className="h-4 w-4" /> },
   ready: { label: 'Ready', color: 'bg-green-100 text-green-800', icon: <CheckCircle2 className="h-4 w-4" /> },
+  rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800', icon: <XCircle className="h-4 w-4" /> },
 };
 
 const CookDashboard: React.FC = () => {
@@ -128,6 +129,7 @@ const CookDashboard: React.FC = () => {
       preparing: 'cooked',
       cooked: 'ready',
       ready: null,
+      rejected: null, // No next status for rejected orders
     };
     return flow[currentStatus];
   };
@@ -344,7 +346,7 @@ const CookDashboard: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleStatusUpdate(order.id, 'cooked')}
+                                onClick={() => handleStatusUpdate(order.id, 'rejected')}
                               >
                                 <XCircle className="h-4 w-4 mr-1" />
                                 Reject

@@ -22,6 +22,7 @@ interface CartItem {
 const CloudKitchenOrder: React.FC = () => {
   const navigate = useNavigate();
   const [selectedDivision, setSelectedDivision] = useState<ActiveDivision | null>(null);
+  // Cart is now keyed by unique_key (food_item_id + cook_id)
   const [cart, setCart] = useState<Record<string, CartItem>>({});
 
   const { data: divisions, isLoading: divisionsLoading } = useCustomerDivisions();
@@ -30,14 +31,16 @@ const CloudKitchenOrder: React.FC = () => {
   );
 
   const handleQuantityChange = (item: CustomerCloudKitchenItem, quantity: number) => {
+    // Use unique_key to track specific dish+cook combination
+    const key = item.unique_key;
     if (quantity === 0) {
       const newCart = { ...cart };
-      delete newCart[item.id];
+      delete newCart[key];
       setCart(newCart);
     } else {
       setCart({
         ...cart,
-        [item.id]: { item, quantity },
+        [key]: { item, quantity },
       });
     }
   };
@@ -78,7 +81,7 @@ const CloudKitchenOrder: React.FC = () => {
       return;
     }
 
-    // Navigate to cloud kitchen checkout with cart data
+    // Navigate to cloud kitchen checkout with cart data including cook info
     navigate('/cloud-kitchen/checkout', {
       state: {
         cartItems: cartItems,
@@ -129,29 +132,32 @@ const CloudKitchenOrder: React.FC = () => {
           )}
         </section>
 
-        {/* Items List */}
+        {/* Items List - now showing dishes with cook info */}
         {selectedDivision && (
           <section>
             <h2 className="text-base font-semibold mb-3">
               {selectedDivision.name} Menu
             </h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              Select dishes from available cooks
+            </p>
             {itemsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-28 rounded-xl" />
+                  <Skeleton key={i} className="h-32 rounded-xl" />
                 ))}
               </div>
             ) : items?.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No items available for this meal time
+                No items available from cooks for this meal time
               </div>
             ) : (
               <div className="space-y-3">
                 {items?.map((item) => (
                   <SetItemCard
-                    key={item.id}
+                    key={item.unique_key}
                     item={item}
-                    quantity={cart[item.id]?.quantity || 0}
+                    quantity={cart[item.unique_key]?.quantity || 0}
                     onQuantityChange={(qty) => handleQuantityChange(item, qty)}
                   />
                 ))}

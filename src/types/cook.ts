@@ -20,7 +20,7 @@ export interface Cook {
   };
 }
 
-export type CookStatus = 'pending' | 'accepted' | 'preparing' | 'cooked' | 'ready';
+export type CookStatus = 'pending' | 'accepted' | 'preparing' | 'cooked' | 'ready' | 'rejected';
 
 export interface CookOrderItem {
   id: string;

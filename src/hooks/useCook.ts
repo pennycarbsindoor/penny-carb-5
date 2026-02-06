@@ -288,13 +288,61 @@ export function useUpdateCookStatus() {
         .from('order_assigned_cooks')
         .update({ 
           cook_status: status,
-          responded_at: status === 'accepted' ? new Date().toISOString() : undefined,
+          responded_at: ['accepted', 'rejected'].includes(status) ? new Date().toISOString() : undefined,
           updated_at: new Date().toISOString(),
         })
         .eq('order_id', orderId)
         .eq('cook_id', profile.id);
 
       if (error) throw error;
+
+      // When cook accepts, update the main order status to 'confirmed' 
+      // This makes it visible to delivery staff
+      if (status === 'accepted') {
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'confirmed',
+            cook_status: 'accepted',
+            cook_assignment_status: 'accepted',
+          })
+          .eq('id', orderId);
+      }
+
+      // When cook rejects, update order status so customer knows
+      if (status === 'rejected') {
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'cancelled',
+            cook_status: 'rejected',
+            cook_assignment_status: 'rejected',
+          })
+          .eq('id', orderId);
+      }
+
+      // When cook marks as cooked/ready, update order status to 'ready'
+      // This indicates food is ready for pickup by delivery
+      if (status === 'cooked') {
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'ready',
+            cook_status: 'ready',
+          })
+          .eq('id', orderId);
+      }
+
+      // When cook is preparing
+      if (status === 'preparing') {
+        await supabase
+          .from('orders')
+          .update({ 
+            status: 'preparing',
+            cook_status: 'preparing',
+          })
+          .eq('id', orderId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cook-orders'] });
