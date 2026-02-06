@@ -46,7 +46,7 @@ const SetItemCard: React.FC<SetItemCardProps> = ({
     item.images?.[0]?.image_url;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${!item.is_orderable ? 'opacity-60' : ''}`}>
       <div className="flex">
         {/* Image */}
         <div className="w-28 h-32 bg-muted flex-shrink-0 relative">
@@ -59,6 +59,13 @@ const SetItemCard: React.FC<SetItemCardProps> = ({
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
               No image
+            </div>
+          )}
+          {!item.is_orderable && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
+              <Badge variant="secondary" className="text-xs">
+                Coming Soon
+              </Badge>
             </div>
           )}
         </div>
@@ -75,17 +82,24 @@ const SetItemCard: React.FC<SetItemCardProps> = ({
               </div>
             </div>
 
-            {/* Cook Info */}
-            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-              <ChefHat className="h-3 w-3" />
-              <span className="font-medium text-foreground">{item.cook.kitchen_name}</span>
-              {item.cook.rating && (
-                <span className="flex items-center gap-0.5 ml-1">
-                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  {item.cook.rating.toFixed(1)}
-                </span>
-              )}
-            </div>
+            {/* Cook Info - only show if cook exists */}
+            {item.cook ? (
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                <ChefHat className="h-3 w-3" />
+                <span className="font-medium text-foreground">{item.cook.kitchen_name}</span>
+                {item.cook.rating && (
+                  <span className="flex items-center gap-0.5 ml-1">
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    {item.cook.rating.toFixed(1)}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                <ChefHat className="h-3 w-3" />
+                <span>No cook available</span>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-1 mt-1.5">
               <Badge variant="outline" className="text-xs">
@@ -101,42 +115,50 @@ const SetItemCard: React.FC<SetItemCardProps> = ({
             </p>
           </div>
 
-          {/* Quantity Controls */}
-          <div className="flex items-center justify-between mt-2">
-            {quantity > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {totalPieces} pcs total
-              </span>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              {quantity > 0 ? (
-                <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={handleDecrease}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="w-8 text-center font-semibold">{quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={handleIncrease}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <Button size="sm" onClick={handleIncrease}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
+          {/* Quantity Controls - only show if orderable */}
+          {item.is_orderable ? (
+            <div className="flex items-center justify-between mt-2">
+              {quantity > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {totalPieces} pcs total
+                </span>
               )}
+              <div className="flex items-center gap-2 ml-auto">
+                {quantity > 0 ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={handleDecrease}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-8 text-center font-semibold">{quantity}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={handleIncrease}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="sm" onClick={handleIncrease}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-2">
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                Not available for order
+              </Badge>
+            </div>
+          )}
         </CardContent>
       </div>
     </Card>

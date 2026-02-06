@@ -21,10 +21,12 @@ export interface CustomerCloudKitchenItem {
     image_url: string;
     is_primary: boolean;
   }[];
-  // Cook info for this specific dish-cook combination
-  cook: CookInfo;
+  // Cook info for this specific dish-cook combination (null if no cook allocated)
+  cook: CookInfo | null;
   // Unique key combining food item and cook
   unique_key: string;
+  // Whether this item can be ordered (has an active cook)
+  is_orderable: boolean;
 }
 
 export interface ActiveDivision {
@@ -153,9 +155,27 @@ export function useCustomerDivisionItems(divisionId: string | null) {
     queryFn: async () => {
       if (!divisionId) return [];
 
-      // Fetch dishes with their allocated cooks via cook_dishes table
-      // Using !inner join with filters directly in the select syntax
-      const { data, error } = await supabase
+      // Fetch all available food items for this division
+      const { data: foodItems, error: foodItemsError } = await supabase
+        .from('food_items')
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          is_vegetarian,
+          set_size,
+          min_order_sets,
+          cloud_kitchen_slot_id,
+          food_item_images(id, image_url, is_primary)
+        `)
+        .eq('cloud_kitchen_slot_id', divisionId)
+        .eq('is_available', true);
+
+      if (foodItemsError) throw foodItemsError;
+
+      // Fetch cook allocations for these items
+      const { data: cookDishes, error: cookDishesError } = await supabase
         .from('cook_dishes')
         .select(`
           id,
@@ -167,60 +187,84 @@ export function useCustomerDivisionItems(divisionId: string | null) {
             rating,
             is_active,
             is_available
-          ),
-          food_items!inner(
-            id,
-            name,
-            description,
-            price,
-            is_vegetarian,
-            set_size,
-            min_order_sets,
-            cloud_kitchen_slot_id,
-            is_available,
-            food_item_images(id, image_url, is_primary)
           )
         `);
 
-      if (error) throw error;
+      if (cookDishesError) throw cookDishesError;
 
-      // Filter in JavaScript since PostgREST has issues with .eq() on joined tables
-      const filteredData = (data || []).filter((row: any) => {
-        const foodItem = row.food_items;
-        const cook = row.cooks;
-        return (
-          foodItem.cloud_kitchen_slot_id === divisionId &&
-          foodItem.is_available === true &&
-          cook.is_active === true &&
-          cook.is_available === true
-        );
+      // Filter to only active and available cooks
+      const activeCookDishes = (cookDishes || []).filter((cd: any) => 
+        cd.cooks?.is_active === true && cd.cooks?.is_available === true
+      );
+
+      // Build a map of food_item_id -> cook allocations
+      const cookAllocationMap = new Map<string, any[]>();
+      activeCookDishes.forEach((cd: any) => {
+        const existing = cookAllocationMap.get(cd.food_item_id) || [];
+        existing.push(cd);
+        cookAllocationMap.set(cd.food_item_id, existing);
       });
 
-      // Transform the data to show each dish-cook combination as a separate item
-      const itemsWithCooks: CustomerCloudKitchenItem[] = filteredData.map((row: any) => ({
-        id: row.food_items.id,
-        name: row.food_items.name,
-        description: row.food_items.description,
-        price: row.food_items.price,
-        is_vegetarian: row.food_items.is_vegetarian,
-        set_size: row.food_items.set_size || 1,
-        min_order_sets: row.food_items.min_order_sets || 1,
-        cloud_kitchen_slot_id: row.food_items.cloud_kitchen_slot_id,
-        images: row.food_items.food_item_images || [],
-        cook: {
-          id: row.cooks.id,
-          kitchen_name: row.cooks.kitchen_name,
-          rating: row.cooks.rating,
-        },
-        // Create unique key combining food item and cook
-        unique_key: `${row.food_items.id}_${row.cooks.id}`,
-      }));
+      // Transform food items into customer items
+      const result: CustomerCloudKitchenItem[] = [];
 
-      // Sort by dish name, then by cook name
-      return itemsWithCooks.sort((a, b) => {
+      (foodItems || []).forEach((item: any) => {
+        const cookAllocations = cookAllocationMap.get(item.id) || [];
+
+        if (cookAllocations.length > 0) {
+          // Create an entry for each cook that offers this dish
+          cookAllocations.forEach((cd: any) => {
+            result.push({
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              price: item.price,
+              is_vegetarian: item.is_vegetarian,
+              set_size: item.set_size || 1,
+              min_order_sets: item.min_order_sets || 1,
+              cloud_kitchen_slot_id: item.cloud_kitchen_slot_id,
+              images: item.food_item_images || [],
+              cook: {
+                id: cd.cooks.id,
+                kitchen_name: cd.cooks.kitchen_name,
+                rating: cd.cooks.rating,
+              },
+              unique_key: `${item.id}_${cd.cooks.id}`,
+              is_orderable: true,
+            });
+          });
+        } else {
+          // No cook allocated - show as display only
+          result.push({
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            is_vegetarian: item.is_vegetarian,
+            set_size: item.set_size || 1,
+            min_order_sets: item.min_order_sets || 1,
+            cloud_kitchen_slot_id: item.cloud_kitchen_slot_id,
+            images: item.food_item_images || [],
+            cook: null,
+            unique_key: `${item.id}_no_cook`,
+            is_orderable: false,
+          });
+        }
+      });
+
+      // Sort: orderable items first, then by name, then by cook name
+      return result.sort((a, b) => {
+        // Orderable items come first
+        if (a.is_orderable !== b.is_orderable) {
+          return a.is_orderable ? -1 : 1;
+        }
         const nameCompare = a.name.localeCompare(b.name);
         if (nameCompare !== 0) return nameCompare;
-        return a.cook.kitchen_name.localeCompare(b.cook.kitchen_name);
+        // Sort by cook name if both have cooks
+        if (a.cook && b.cook) {
+          return a.cook.kitchen_name.localeCompare(b.cook.kitchen_name);
+        }
+        return 0;
       });
     },
     enabled: !!divisionId,
