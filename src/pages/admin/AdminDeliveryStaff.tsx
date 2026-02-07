@@ -21,10 +21,11 @@ import {
 } from '@/components/ui/dialog';
 import { 
   ArrowLeft, Truck, Phone, MapPin, CheckCircle, XCircle, 
-  Bike, Car, Plus, Search, User, Loader2, X, Pencil, Trash2, Settings 
+  Bike, Car, Plus, Search, User, Loader2, X, Pencil, Trash2, Settings, Wallet 
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { DeliveryStaff } from '@/types/delivery';
+import DeliveryStaffWalletTab from '@/components/admin/delivery/DeliveryStaffWalletTab';
 
 const vehicleIcons: Record<string, React.ReactNode> = {
   bicycle: <Bike className="h-4 w-4" />,
@@ -918,7 +919,7 @@ const AdminDeliveryStaff: React.FC = () => {
 
       <main className="container px-4 py-4">
         <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pending" className="relative">
               Pending
               {pendingStaff && pendingStaff.length > 0 && (
@@ -928,6 +929,10 @@ const AdminDeliveryStaff: React.FC = () => {
               )}
             </TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="wallet" className="gap-1">
+              <Wallet className="h-4 w-4" />
+              Wallet
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="space-y-3">
@@ -958,6 +963,10 @@ const AdminDeliveryStaff: React.FC = () => {
                 <p className="text-muted-foreground">No approved delivery staff</p>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="wallet">
+            <DeliveryStaffWalletTab />
           </TabsContent>
         </Tabs>
       </main>

@@ -61,6 +61,7 @@ export function useCookOrders() {
       if (!profile?.id) return [];
 
       // Fetch assignments from order_assigned_cooks (include cooked status for visibility until shipped)
+      // Exclude rejected orders - they should never appear in the list
       const { data: assignments, error: assignError } = await supabase
         .from('order_assigned_cooks')
         .select('order_id, cook_status')
@@ -137,6 +138,7 @@ export function useCookOrders() {
       return ordersWithDetails as CookOrder[];
     },
     enabled: !!profile?.id,
+    refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes
   });
 }
 

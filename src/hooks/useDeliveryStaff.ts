@@ -131,6 +131,7 @@ export function useDeliveryOrders() {
       return ordersWithCustomers as DeliveryOrder[];
     },
     enabled: !!user?.id,
+    refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes
   });
 }
 
@@ -260,6 +261,7 @@ export function useAvailableDeliveryOrders() {
       return ordersWithCustomers as DeliveryOrder[];
     },
     enabled: !!profile && profile.is_approved,
+    refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes
   });
 }
 
