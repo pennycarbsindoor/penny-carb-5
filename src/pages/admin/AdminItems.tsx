@@ -35,11 +35,29 @@ import {
   Leaf,
   Star,
   Percent,
-  Building2
+  Building2,
+  ChefHat,
+  User
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import AdminNavbar from '@/components/admin/AdminNavbar';
 import ImageUpload from '@/components/admin/ImageUpload';
+import { calculatePlatformMargin } from '@/lib/priceUtils';
+
+// Helper to calculate customer price
+const getCustomerPrice = (item: FoodItemWithImages): number => {
+  const marginType = ((item as any).platform_margin_type || 'percent') as 'percent' | 'fixed';
+  const marginValue = (item as any).platform_margin_value || 0;
+  const margin = calculatePlatformMargin(item.price, marginType, marginValue);
+  return item.price + margin;
+};
+
+// Helper to get margin amount
+const getMarginAmount = (item: FoodItemWithImages): number => {
+  const marginType = ((item as any).platform_margin_type || 'percent') as 'percent' | 'fixed';
+  const marginValue = (item as any).platform_margin_value || 0;
+  return calculatePlatformMargin(item.price, marginType, marginValue);
+};
 
 const serviceTypes: { value: ServiceType; label: string }[] = [
   { value: 'indoor_events', label: 'Indoor Events' },
@@ -448,18 +466,28 @@ const AdminItems: React.FC = () => {
                           <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
                         )}
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm text-muted-foreground">
-                          ₹{item.price}
-                        </p>
-                        {((item as any).platform_margin_value > 0) && (
-                          <Badge variant="outline" className="text-xs bg-primary/5 border-primary/30 text-primary">
-                            <Building2 className="h-3 w-3 mr-0.5" />
-                            {(item as any).platform_margin_type === 'percent' 
-                              ? `+${(item as any).platform_margin_value}%` 
-                              : `+₹${(item as any).platform_margin_value}`}
-                          </Badge>
-                        )}
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        {/* Pricing breakdown */}
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span className="flex items-center gap-0.5 text-muted-foreground">
+                            <ChefHat className="h-3 w-3" />
+                            ₹{item.price}
+                          </span>
+                          {getMarginAmount(item) > 0 && (
+                            <>
+                              <span className="text-muted-foreground">+</span>
+                              <span className="flex items-center gap-0.5 text-primary">
+                                <Building2 className="h-3 w-3" />
+                                ₹{getMarginAmount(item).toFixed(0)}
+                              </span>
+                            </>
+                          )}
+                          <span className="text-muted-foreground">=</span>
+                          <span className="flex items-center gap-0.5 font-semibold text-foreground">
+                            <User className="h-3 w-3" />
+                            ₹{getCustomerPrice(item).toFixed(0)}
+                          </span>
+                        </div>
                         {((item as any).discount_percent > 0 || (item as any).discount_amount > 0) && (
                           <Badge variant="destructive" className="text-xs">
                             <Percent className="h-3 w-3 mr-0.5" />
