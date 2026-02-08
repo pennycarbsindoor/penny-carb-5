@@ -9,6 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck } from 'lucide-react';
 import BottomNav from '@/components/customer/BottomNav';
+import { calculatePlatformMargin } from '@/lib/priceUtils';
+
+interface OrderWithCustomerTotal extends Order {
+  customerTotal?: number;
+}
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: 'Pending', color: 'bg-warning text-warning-foreground', icon: <Clock className="h-4 w-4" /> },
@@ -23,7 +28,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string; icon: Re
 const Orders: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderWithCustomerTotal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +46,40 @@ const Orders: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setOrders(data as Order[]);
+        const ordersList = data as Order[];
+
+        if (ordersList.length === 0) {
+          setOrders([]);
+          return;
+        }
+
+        // Fetch order items with food item margin data to calculate customer totals
+        const orderIds = ordersList.map(o => o.id);
+        const { data: itemsData } = await supabase
+          .from('order_items')
+          .select(`
+            order_id, quantity,
+            food_item:food_items(price, platform_margin_type, platform_margin_value)
+          `)
+          .in('order_id', orderIds);
+
+        // Calculate customer total per order
+        const orderTotals = new Map<string, number>();
+        itemsData?.forEach((item: any) => {
+          const fi = item.food_item;
+          if (!fi) return;
+          const marginType = (fi.platform_margin_type || 'percent') as 'percent' | 'fixed';
+          const marginValue = fi.platform_margin_value || 0;
+          const margin = calculatePlatformMargin(fi.price, marginType, marginValue);
+          const customerPrice = fi.price + margin;
+          const current = orderTotals.get(item.order_id) || 0;
+          orderTotals.set(item.order_id, current + customerPrice * item.quantity);
+        });
+
+        setOrders(ordersList.map(o => ({
+          ...o,
+          customerTotal: orderTotals.get(o.id),
+        })));
       } catch (error) {
         console.error('Error fetching orders:', error);
       } finally {
@@ -130,7 +168,7 @@ const Orders: React.FC = () => {
                       <span className="text-sm text-muted-foreground">
                         {order.service_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </span>
-                      <span className="font-semibold">₹{order.total_amount}</span>
+                      <span className="font-semibold">₹{order.customerTotal ?? order.total_amount}</span>
                     </div>
                   </CardContent>
                 </Card>
