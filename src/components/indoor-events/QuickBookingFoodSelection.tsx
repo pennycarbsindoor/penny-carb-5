@@ -9,6 +9,15 @@ import { Search, UtensilsCrossed, Leaf, ShoppingBasket } from 'lucide-react';
 import { useIndoorEventItems, useIndoorEventCategories } from '@/hooks/useIndoorEventItems';
 import FoodItemCard from './FoodItemCard';
 import type { FoodItem } from '@/hooks/useIndoorEventItems';
+import { calculatePlatformMargin } from '@/lib/priceUtils';
+
+// Helper to get customer price (base + margin)
+const getCustomerPrice = (item: FoodItem): number => {
+  const marginType = (item.platform_margin_type || 'percent') as 'percent' | 'fixed';
+  const marginValue = item.platform_margin_value || 0;
+  const margin = calculatePlatformMargin(item.price, marginType, marginValue);
+  return item.price + margin;
+};
 
 interface SelectedItem {
   item: FoodItem;
@@ -70,7 +79,7 @@ const QuickBookingFoodSelection: React.FC<QuickBookingFoodSelectionProps> = ({
 
   const totalItems = Array.from(selectedItems.values()).reduce((sum, { quantity }) => sum + quantity, 0);
   const totalAmount = Array.from(selectedItems.values()).reduce(
-    (sum, { item, quantity }) => sum + (item.price * quantity), 
+    (sum, { item, quantity }) => sum + (getCustomerPrice(item) * quantity), 
     0
   );
 

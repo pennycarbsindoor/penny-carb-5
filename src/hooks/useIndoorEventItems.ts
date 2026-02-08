@@ -9,6 +9,8 @@ export interface FoodItem {
   is_vegetarian: boolean;
   category_id: string | null;
   serves_persons?: number | null;
+  platform_margin_type?: string | null;
+  platform_margin_value?: number | null;
   category?: {
     id: string;
     name: string;
@@ -41,6 +43,8 @@ export function useIndoorEventItems() {
           is_vegetarian,
           category_id,
           serves_persons,
+          platform_margin_type,
+          platform_margin_value,
           food_categories!category_id (
             id,
             name
@@ -59,6 +63,8 @@ export function useIndoorEventItems() {
       
       return data.map(item => ({
         ...item,
+        platform_margin_type: item.platform_margin_type,
+        platform_margin_value: item.platform_margin_value,
         category: item.food_categories,
         images: item.food_item_images,
       })) as FoodItem[];
