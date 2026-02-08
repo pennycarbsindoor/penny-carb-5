@@ -128,7 +128,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({ item, quantity, onQuantityC
           item={{
             id: item.id,
             name: item.name,
-            price: item.price,
+            price: getCustomerPrice(item),
             serves_persons: item.serves_persons ?? null,
           }}
           guestCount={guestCount}
