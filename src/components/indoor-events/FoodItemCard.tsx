@@ -5,9 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Plus, Minus, Leaf, Wand2 } from 'lucide-react';
 import type { FoodItem } from '@/hooks/useIndoorEventItems';
 import FoodQuantitySuggestionDialog from './FoodQuantitySuggestionDialog';
+import { calculatePlatformMargin } from '@/lib/priceUtils';
+
+// Helper to get customer price (base + margin)
+const getCustomerPrice = (item: FoodItem & { platform_margin_type?: string; platform_margin_value?: number }): number => {
+  const marginType = (item.platform_margin_type || 'percent') as 'percent' | 'fixed';
+  const marginValue = item.platform_margin_value || 0;
+  const margin = calculatePlatformMargin(item.price, marginType, marginValue);
+  return item.price + margin;
+};
 
 interface FoodItemCardProps {
-  item: FoodItem;
+  item: FoodItem & { platform_margin_type?: string; platform_margin_value?: number };
   quantity: number;
   onQuantityChange: (quantity: number) => void;
   guestCount?: number;
@@ -53,7 +62,7 @@ const FoodItemCard: React.FC<FoodItemCardProps> = ({ item, quantity, onQuantityC
               )}
             </div>
             <span className="text-sm font-semibold text-indoor-events whitespace-nowrap">
-              ₹{item.price}
+              ₹{getCustomerPrice(item)}
             </span>
           </div>
           

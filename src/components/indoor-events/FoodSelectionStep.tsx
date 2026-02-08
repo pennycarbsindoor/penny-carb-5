@@ -10,6 +10,15 @@ import { Plus, Minus, Leaf, UtensilsCrossed, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SelectedFood } from '@/pages/IndoorEventsPlanner';
 import FoodQuantitySuggestionDialog from './FoodQuantitySuggestionDialog';
+import { calculatePlatformMargin } from '@/lib/priceUtils';
+
+// Helper to get customer price (base + margin)
+const getCustomerPrice = (item: any): number => {
+  const marginType = (item.platform_margin_type || 'percent') as 'percent' | 'fixed';
+  const marginValue = item.platform_margin_value || 0;
+  const margin = calculatePlatformMargin(item.price, marginType, marginValue);
+  return item.price + margin;
+};
 
 interface FoodSelectionStepProps {
   selectedFoods: SelectedFood[];
@@ -58,7 +67,7 @@ const FoodSelectionStep: React.FC<FoodSelectionStepProps> = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('food_items')
-        .select('*, food_item_images(*), food_categories(*)')
+        .select('*, food_item_images(*), food_categories(*), platform_margin_type, platform_margin_value')
         .eq('service_type', 'indoor_events')
         .eq('is_available', true)
         .order('name');
@@ -78,6 +87,7 @@ const FoodSelectionStep: React.FC<FoodSelectionStepProps> = ({
   // Manual add - just increment by 1
   const handleAddFood = (item: any) => {
     const existing = selectedFoods.find((f) => f.id === item.id);
+    const customerPrice = getCustomerPrice(item);
     
     if (existing) {
       onUpdateFoods(
@@ -91,7 +101,7 @@ const FoodSelectionStep: React.FC<FoodSelectionStepProps> = ({
         {
           id: item.id,
           name: item.name,
-          price: item.price,
+          price: customerPrice, // Store customer price (base + margin)
           quantity: 1,
           category: item.food_categories?.name || 'Other',
         },
@@ -101,10 +111,11 @@ const FoodSelectionStep: React.FC<FoodSelectionStepProps> = ({
 
   // Auto calculate button - shows suggestion dialog
   const handleAutoCalculate = (item: any) => {
+    const customerPrice = getCustomerPrice(item);
     setSuggestionItem({
       id: item.id,
       name: item.name,
-      price: item.price,
+      price: customerPrice, // Use customer price
       serves_persons: item.serves_persons,
       category: item.food_categories?.name || 'Other',
     });
@@ -259,11 +270,11 @@ const FoodSelectionStep: React.FC<FoodSelectionStepProps> = ({
                     <div className="flex items-center justify-between mt-2">
                       <div>
                         <p className="text-sm font-semibold text-indoor-events">
-                          ₹{item.price}/plate
+                          ₹{getCustomerPrice(item)}/plate
                         </p>
                         {qty > 0 && (
                           <p className="text-xs text-muted-foreground">
-                            {qty} units = ₹{(item.price * qty).toLocaleString()}
+                            {qty} units = ₹{(getCustomerPrice(item) * qty).toLocaleString()}
                           </p>
                         )}
                       </div>
