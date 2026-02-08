@@ -11,8 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Eye, Search, Calendar, Users, MapPin, Phone, ChefHat, Loader2, RotateCcw, Truck, Package, CheckCircle2, Car } from 'lucide-react';
+import { Eye, Search, Calendar, Users, MapPin, Phone, ChefHat, Loader2, RotateCcw, Truck, Package, CheckCircle2, Car, AlertTriangle } from 'lucide-react';
 import VehicleSelectionDialog from '@/components/admin/indoor-events/VehicleSelectionDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
@@ -85,6 +95,8 @@ const IndoorEventsOrders: React.FC = () => {
   const [dishCookAssignments, setDishCookAssignments] = useState<Map<string, string>>(new Map());
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [vehicleDialogOrder, setVehicleDialogOrder] = useState<IndoorEventOrder | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<IndoorEventOrder | null>(null);
   const queryClient = useQueryClient();
 
   const { data: orders, isLoading, refetch } = useQuery({
@@ -684,7 +696,14 @@ const IndoorEventsOrders: React.FC = () => {
                     </Button>
                   )}
                   {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
-                    <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(selectedOrder.id, 'cancelled')}>
+                    <Button 
+                      size="sm" 
+                      variant="destructive" 
+                      onClick={() => {
+                        setOrderToCancel(selectedOrder);
+                        setCancelDialogOpen(true);
+                      }}
+                    >
                       Cancel
                     </Button>
                   )}
@@ -851,6 +870,39 @@ const IndoorEventsOrders: React.FC = () => {
           }}
         />
       )}
+
+      {/* Cancel Order Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Cancel Order
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel order{' '}
+              <span className="font-mono font-semibold">#{orderToCancel?.order_number}</span>?
+              <br />
+              <span className="text-destructive font-medium">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, Keep Order</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (orderToCancel) {
+                  handleUpdateStatus(orderToCancel.id, 'cancelled');
+                  setCancelDialogOpen(false);
+                  setOrderToCancel(null);
+                }
+              }}
+            >
+              Yes, Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </IndoorEventsShell>
   );
 };

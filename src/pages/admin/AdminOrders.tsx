@@ -8,8 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Package, Clock, CheckCircle, XCircle, Truck, Search, Filter } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, Truck, Search, Filter, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface OrderWithProfile extends Order {
   profiles?: {
@@ -35,6 +45,8 @@ const AdminOrders: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [serviceFilter, setServiceFilter] = useState<ServiceType | 'all'>('all');
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<OrderWithProfile | null>(null);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -239,7 +251,14 @@ const AdminOrders: React.FC = () => {
                             <Button size="sm" onClick={() => updateOrderStatus(order.id, 'confirmed')}>
                               Confirm
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              onClick={() => {
+                                setOrderToCancel(order);
+                                setCancelDialogOpen(true);
+                              }}
+                            >
                               Cancel
                             </Button>
                           </>
@@ -276,6 +295,39 @@ const AdminOrders: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Cancel Order Confirmation Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Cancel Order
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel order{' '}
+              <span className="font-mono font-semibold">#{orderToCancel?.order_number}</span>?
+              <br />
+              <span className="text-destructive font-medium">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, Keep Order</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (orderToCancel) {
+                  updateOrderStatus(orderToCancel.id, 'cancelled');
+                  setCancelDialogOpen(false);
+                  setOrderToCancel(null);
+                }
+              }}
+            >
+              Yes, Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
