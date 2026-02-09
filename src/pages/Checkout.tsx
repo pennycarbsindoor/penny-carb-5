@@ -106,6 +106,9 @@ const Checkout: React.FC = () => {
       // Generate order number
       const orderNumber = `PC${Date.now()}`;
 
+      // For homemade orders, set cook/delivery statuses so delivery staff get notified
+      const isHomemade = serviceType === 'homemade';
+
       // Create the order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -118,6 +121,12 @@ const Checkout: React.FC = () => {
           ward_number: selectedWardNumber!,
           delivery_address: deliveryAddress,
           delivery_instructions: deliveryInstructions || null,
+          ...(isHomemade ? {
+            status: 'confirmed' as const,
+            cook_status: 'pending',
+            delivery_status: 'pending',
+            estimated_delivery_minutes: 60,
+          } : {}),
         }])
         .select()
         .single();
@@ -141,6 +150,41 @@ const Checkout: React.FC = () => {
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
+
+      // For homemade orders, assign cooks who have these dishes allocated
+      if (isHomemade) {
+        const foodItemIds = items.map(item => item.food_item_id);
+        const { data: cookDishes } = await supabase
+          .from('cook_dishes')
+          .select('cook_id, food_item_id')
+          .in('food_item_id', foodItemIds);
+
+        if (cookDishes && cookDishes.length > 0) {
+          // Get unique cook IDs
+          const uniqueCookIds = [...new Set(cookDishes.map(cd => cd.cook_id))];
+
+          // Create cook assignments
+          for (const cookId of uniqueCookIds) {
+            await supabase
+              .from('order_assigned_cooks')
+              .insert({
+                order_id: order.id,
+                cook_id: cookId,
+                cook_status: 'pending',
+                assigned_at: new Date().toISOString(),
+              });
+          }
+
+          // Update order items with assigned cook
+          for (const cd of cookDishes) {
+            await supabase
+              .from('order_items')
+              .update({ assigned_cook_id: cd.cook_id })
+              .eq('order_id', order.id)
+              .eq('food_item_id', cd.food_item_id);
+          }
+        }
+      }
 
       // Clear the cart
       await clearCart();
